@@ -3,6 +3,7 @@
 
   const route = window.KEM_ROUTE;
   const photos = window.KEM_PHOTOS || [];
+  const guidedPoints = [...route.points].sort((a, b) => a.number - b.number);
   const STORAGE_PROGRESS = "kem-route-progress-v1";
   const STORAGE_EDITS = "kem-route-edits-v1";
   const state = {
@@ -14,6 +15,7 @@
     markers: new Map(),
     map: null,
     routeLayer: null,
+    photoLayer: null,
     coordinateMode: false,
     coordinateMarker: null,
     userMarker: null,
@@ -62,7 +64,7 @@
   }
 
   function updateProgress() {
-    const total = route.points.length;
+    const total = guidedPoints.length;
     const done = state.completed.size;
     els.progressText.textContent = `${done} из ${total} точек`;
     els.progressBar.style.width = `${(done / total) * 100}%`;
@@ -94,10 +96,10 @@
     }, 0));
 
     state.routeLayer = L.layerGroup().addTo(state.map);
-    const routeLine = route.points.map(point => point.coordinates);
+    const routeLine = guidedPoints.map(point => point.coordinates);
     L.polyline(routeLine, { color: "#e21f26", weight: 4, opacity: .82, dashArray: "9 9" }).addTo(state.routeLayer);
 
-    route.points.forEach(point => {
+    guidedPoints.forEach(point => {
       const needsCheck = point.coordinateStatus === "needs-check";
       const marker = L.marker(point.coordinates, {
         icon: L.divIcon({
@@ -114,14 +116,37 @@
       state.markers.set(point.id, marker);
     });
 
+    state.photoLayer = L.layerGroup();
+    photos.forEach(photo => {
+      const point = guidedPoints.find(item => item.id === photo.pointId);
+      if (!point) return;
+      const marker = L.marker(point.coordinates, {
+        icon: L.divIcon({
+          className: "",
+          html: `<div class="photo-map-marker" style="background-image:url('${photo.src}')"><span>${photo.pointNumber}</span></div>`,
+          iconSize: [54, 54],
+          iconAnchor: [27, 27],
+          popupAnchor: [0, -29]
+        })
+      });
+      marker.bindPopup(`<strong>${photo.title}</strong><br><small>${photo.date}</small><br><button class="popup-button" onclick="window.openKemPhoto('${photo.id}')">Открыть фотографию →</button>`);
+      marker.addTo(state.photoLayer);
+    });
+
     const bounds = L.latLngBounds(routeLine);
     state.map.fitBounds(bounds, { padding: [45, 45] });
 
     L.control.layers(
       { "Карта улиц": streetMap, "Спокойная схема": quietMap },
-      { "Маршрут экскурсии": state.routeLayer },
+      { "Маршрут экскурсии": state.routeLayer, "Фотографии точек": state.photoLayer },
       { position: "bottomright", collapsed: true }
     ).addTo(state.map);
+    state.map.on("overlayadd overlayremove", event => {
+      if (event.layer !== state.photoLayer) return;
+      const visible = state.map.hasLayer(state.photoLayer);
+      document.querySelector("#photosButton").classList.toggle("is-active", visible);
+      document.querySelector("#photosButton").setAttribute("aria-pressed", String(visible));
+    });
     state.map.on("click", event => {
       if (state.coordinateMode) captureCoordinate(event.latlng);
     });
@@ -193,13 +218,13 @@
       icon: L.divIcon({ className: "", html: '<div class="user-marker"></div>', iconSize: [24, 24], iconAnchor: [12, 12] })
     }).addTo(state.map).bindPopup("Вы находитесь здесь").openPopup();
     state.accuracyCircle = L.circle(event.latlng, { radius: event.accuracy, color: "#1769aa", weight: 1, fillOpacity: .08 }).addTo(state.map);
-    const nearest = route.points.map(point => ({ point, distance: state.map.distance(event.latlng, point.coordinates) })).sort((a, b) => a.distance - b.distance)[0];
+    const nearest = guidedPoints.map(point => ({ point, distance: state.map.distance(event.latlng, point.coordinates) })).sort((a, b) => a.distance - b.distance)[0];
     const distanceText = nearest.distance < 1000 ? `${Math.round(nearest.distance)} м` : `${(nearest.distance / 1000).toFixed(1)} км`;
     showToast(`Ближайшая готовая точка — «${nearest.point.shortTitle}», ${distanceText}`);
   }
 
   function renderPoints() {
-    const visible = state.filter === "all" ? route.points : route.points.filter(point => point.chapter === state.filter);
+    const visible = state.filter === "all" ? guidedPoints : guidedPoints.filter(point => point.chapter === state.filter);
     els.pointsList.innerHTML = visible.map(point => {
       const chapter = route.chapters.find(item => item.id === point.chapter);
       const done = state.completed.has(point.id) ? " · пройдено" : "";
@@ -221,9 +246,9 @@
   }
 
   function openPoint(pointId) {
-    const point = route.points.find(item => item.id === pointId);
+    const point = guidedPoints.find(item => item.id === pointId);
     if (!point) return;
-    state.currentPointIndex = route.points.indexOf(point);
+    state.currentPointIndex = guidedPoints.indexOf(point);
     highlightPoint(pointId);
     if (state.map) state.map.flyTo(point.coordinates, 16, { duration: .65 });
 
@@ -246,7 +271,7 @@
   }
 
   function openEdit(pointId) {
-    const point = route.points.find(item => item.id === pointId) || route.plannedPoints.find(item => item.id === pointId);
+    const point = guidedPoints.find(item => item.id === pointId) || route.plannedPoints.find(item => item.id === pointId);
     if (!point) return;
     if (els.pointDialog.open) els.pointDialog.close();
     if (els.photoDialog.open) els.photoDialog.close();
@@ -257,7 +282,7 @@
   }
 
   function enterGuide(pointIndex = 0) {
-    state.currentPointIndex = Math.min(Math.max(pointIndex, 0), route.points.length - 1);
+    state.currentPointIndex = Math.min(Math.max(pointIndex, 0), guidedPoints.length - 1);
     document.querySelector(".map-panel").hidden = true;
     els.pointsPanel.hidden = true;
     els.guidePanel.hidden = false;
@@ -275,8 +300,8 @@
   }
 
   function renderGuide() {
-    const point = route.points[state.currentPointIndex];
-    els.guideStep.textContent = `Точка ${state.currentPointIndex + 1} из ${route.points.length}`;
+    const point = guidedPoints[state.currentPointIndex];
+    els.guideStep.textContent = `Точка ${state.currentPointIndex + 1} из ${guidedPoints.length}`;
     els.guideContent.innerHTML = `<div class="guide-layout">
       <div class="guide-visual"><img src="${point.image}" alt="${point.imageAlt}"></div>
       <div class="guide-copy">
@@ -293,7 +318,7 @@
       </div>
     </div>`;
     document.querySelector("#previousPointButton").disabled = state.currentPointIndex === 0;
-    document.querySelector("#nextPointButton").textContent = state.currentPointIndex === route.points.length - 1 ? "Завершить маршрут" : "Следующая точка";
+    document.querySelector("#nextPointButton").textContent = state.currentPointIndex === guidedPoints.length - 1 ? "Завершить маршрут" : "Следующая точка";
   }
 
   function completePoint(pointId) {
@@ -320,6 +345,7 @@
   }
 
   window.openKemPoint = openPoint;
+  window.openKemPhoto = openPhoto;
 
   document.addEventListener("click", event => {
     const pointCard = event.target.closest("[data-point-id]");
@@ -365,11 +391,11 @@
   document.querySelector("#exitGuideButton").addEventListener("click", exitGuide);
   document.querySelector("#previousPointButton").addEventListener("click", () => { state.currentPointIndex -= 1; renderGuide(); });
   document.querySelector("#nextPointButton").addEventListener("click", () => {
-    const current = route.points[state.currentPointIndex];
+    const current = guidedPoints[state.currentPointIndex];
     state.completed.add(current.id);
     saveProgress();
     renderPoints();
-    if (state.currentPointIndex < route.points.length - 1) {
+    if (state.currentPointIndex < guidedPoints.length - 1) {
       state.currentPointIndex += 1;
       renderGuide();
       window.scrollTo({ top: document.querySelector(".workspace").offsetTop, behavior: "smooth" });
@@ -380,7 +406,12 @@
   });
   document.querySelectorAll(".segmented__button").forEach(button => button.addEventListener("click", () => button.dataset.view === "guide" ? enterGuide(state.currentPointIndex) : exitGuide()));
   document.querySelector("#aboutButton").addEventListener("click", () => document.querySelector("#aboutDialog").showModal());
-  document.querySelector("#photosButton").addEventListener("click", () => document.querySelector("#photoStories").scrollIntoView({ behavior: "smooth", block: "start" }));
+  document.querySelector("#photosButton").addEventListener("click", () => {
+    if (!state.map || !state.photoLayer) return;
+    const visible = state.map.hasLayer(state.photoLayer);
+    if (visible) state.map.removeLayer(state.photoLayer); else state.photoLayer.addTo(state.map);
+    showToast(visible ? "Фотографии скрыты" : "Фотографии показаны на карте");
+  });
   document.querySelector("#coordinateModeButton").addEventListener("click", () => setCoordinateMode(!state.coordinateMode));
   document.querySelector("#locateButton").addEventListener("click", () => {
     if (!state.map) return;
