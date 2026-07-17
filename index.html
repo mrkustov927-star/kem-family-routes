@@ -116,7 +116,10 @@
     <section class="photo-stories" id="photoStories" aria-labelledby="photoStoriesTitle">
       <div class="photo-stories__heading">
         <div><p class="eyebrow">Визуальный архив</p><h2 id="photoStoriesTitle">Кемь в деталях</h2></div>
-        <p>Первые фотографии уже связаны с точками маршрута. Подписи с пометкой «уточняется» ждут редакторской проверки.</p>
+        <div class="photo-stories__intro">
+          <p>Первые фотографии уже связаны с точками маршрута. Участники могут добавить свой снимок как черновик для редакторской проверки.</p>
+          <button class="button button--ghost" id="addPhotoButton" type="button">＋ Добавить фото</button>
+        </div>
       </div>
       <div class="photo-strip" id="photoStrip"></div>
     </section>
@@ -185,6 +188,27 @@
     </form>
   </dialog>
 
+  <dialog class="photo-upload-dialog" id="photoUploadDialog">
+    <form class="dialog-shell edit-form" id="photoUploadForm">
+      <button class="dialog-close" type="button" data-close-dialog="photoUploadDialog" aria-label="Закрыть">×</button>
+      <p class="eyebrow">Вклад участника</p>
+      <h2>Добавить фотографию</h2>
+      <p class="muted">Снимок будет уменьшен для телефона и сохранён как черновик только на этом устройстве. Затем выгрузите материалы редактору.</p>
+      <label>Точка экскурсии<select id="photoPoint" name="pointId" required></select></label>
+      <label>Фотография<input id="photoFile" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+      <div class="photo-upload-preview" id="photoUploadPreview" hidden><img alt="Предварительный просмотр выбранной фотографии"></div>
+      <label>Название снимка<input name="title" required maxlength="120" placeholder="Например: водонапорная башня со стороны реки"></label>
+      <label>Подпись<textarea name="caption" rows="4" required maxlength="700" placeholder="Что изображено и почему это важно для экскурсии"></textarea></label>
+      <div class="coordinate-fields">
+        <label>Дата съёмки<input name="date" placeholder="Например: май 2026"></label>
+        <label>Автор фотографии<input name="author" autocomplete="name" required placeholder="Имя и фамилия"></label>
+      </div>
+      <label>Источник или комментарий<input name="source" placeholder="Личный архив, семейный альбом, школьный музей…"></label>
+      <label class="consent-check"><input name="rightsConfirmed" type="checkbox" required> Я автор снимка или получил разрешение на его использование в проекте</label>
+      <div class="dialog-actions"><button class="button button--ghost" type="button" data-close-dialog="photoUploadDialog">Отмена</button><button class="button button--primary" id="savePhotoButton" type="submit">Сохранить черновик</button></div>
+    </form>
+  </dialog>
+
   <dialog class="coordinate-dialog" id="coordinateDialog">
     <form class="dialog-shell edit-form" id="coordinateForm">
       <button class="dialog-close" type="button" data-close-dialog="coordinateDialog" aria-label="Закрыть">×</button>
@@ -224,7 +248,7 @@
 
   <footer>
     <div><strong>Семейные маршруты по Кеми с Первыми</strong><p>Учебный краеведческий проект · 2026</p></div>
-    <div class="footer-actions"><button class="text-button" id="exportButton" type="button">Выгрузить правки</button><button class="text-button" id="resetProgressButton" type="button">Сбросить прогресс</button></div>
+    <div class="footer-actions"><button class="text-button" id="exportButton" type="button">Выгрузить материалы</button><button class="text-button" id="resetProgressButton" type="button">Сбросить прогресс</button></div>
   </footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>

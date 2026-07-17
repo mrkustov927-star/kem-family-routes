@@ -156,8 +156,10 @@ h1 span { color: var(--red); }
 .photo-stories__heading { max-width: 1480px; margin: 0 auto 28px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 520px); align-items: end; gap: 32px; }
 .photo-stories__heading h2 { margin: 0; color: white; font-size: clamp(38px, 5vw, 64px); line-height: 1; letter-spacing: -.045em; }
 .photo-stories__heading p:not(.eyebrow) { margin: 0; color: #bed0dc; line-height: 1.55; }
+.photo-stories__intro { display: grid; justify-items: start; gap: 18px; }
 .photo-strip { max-width: 1480px; margin: 0 auto; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(280px, 36%); gap: 14px; overflow-x: auto; padding: 0 0 14px; scroll-snap-type: x mandatory; scrollbar-color: #75c5df #203c52; }
 .photo-card { position: relative; min-height: 370px; padding: 0; overflow: hidden; border: 0; border-radius: 20px; background: #203c52; color: white; text-align: left; scroll-snap-align: start; }
+.photo-card--draft { outline: 2px dashed var(--yellow); outline-offset: -8px; }
 .photo-card img { width: 100%; height: 100%; min-height: 370px; position: absolute; inset: 0; object-fit: cover; transition: transform .35s ease; }
 .photo-card:hover img { transform: scale(1.025); }
 .photo-card::after { content: ""; position: absolute; inset: 35% 0 0; background: linear-gradient(transparent, rgba(5,19,30,.92)); }
@@ -174,6 +176,12 @@ h1 span { color: var(--red); }
 .photo-meta strong, .photo-meta span { display: block; }
 .photo-meta strong { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
 .photo-meta span { margin-top: 5px; line-height: 1.35; }
+.photo-upload-preview { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: #eef3f5; }
+.photo-upload-preview img { display: block; width: 100%; max-height: 320px; object-fit: contain; }
+.consent-check { grid-template-columns: auto minmax(0, 1fr) !important; align-items: start; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: #f5f8f9; line-height: 1.45; }
+.consent-check input { width: 20px !important; height: 20px; margin: 0; }
+.text-button--danger { color: var(--red); }
+.photo-map-marker--draft { outline: 3px dashed var(--yellow); outline-offset: 2px; }
 .coordinate-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 .route-plan { padding: clamp(54px, 8vw, 105px) clamp(20px, 7vw, 110px); background: var(--white); }
