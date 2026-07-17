@@ -28,6 +28,7 @@
     routeLayer: null,
     photoLayer: null,
     routeIssueLayer: null,
+    coordinateDraftLayer: null,
     coordinateMode: false,
     routeReviewMode: false,
     coordinateMarker: null,
@@ -60,6 +61,8 @@
     photoDialogContent: document.querySelector("#photoDialogContent"),
     coordinateDialog: document.querySelector("#coordinateDialog"),
     coordinateForm: document.querySelector("#coordinateForm"),
+    coordinateNewPointLabel: document.querySelector("#coordinateNewPointLabel"),
+    coordinateNewPointName: document.querySelector("#coordinateNewPointName"),
     routeIssueDialog: document.querySelector("#routeIssueDialog"),
     routeIssueForm: document.querySelector("#routeIssueForm"),
     routeIssueCount: document.querySelector("#routeIssueCount"),
@@ -211,13 +214,15 @@
 
     state.routeIssueLayer = L.layerGroup().addTo(state.map);
     renderRouteIssues();
+    state.coordinateDraftLayer = L.layerGroup().addTo(state.map);
+    renderCoordinateDrafts();
 
     const bounds = L.latLngBounds(routeLine);
     state.map.fitBounds(bounds, { padding: [45, 45] });
 
     L.control.layers(
       { "Современная карта": streetMap, "Спокойная схема": quietMap, "OpenStreetMap": osmMap },
-      { "Маршрут экскурсии": state.routeLayer, "Фотографии точек": state.photoLayer, "Полевые замечания": state.routeIssueLayer },
+      { "Маршрут экскурсии": state.routeLayer, "Фотографии точек": state.photoLayer, "Новые точки и координаты": state.coordinateDraftLayer, "Полевые замечания": state.routeIssueLayer },
       { position: "bottomright", collapsed: true }
     ).addTo(state.map);
     state.map.on("overlayadd overlayremove", event => {
@@ -346,6 +351,39 @@
     state.routeIssues = state.routeIssues.filter(issue => issue.id !== issueId);
     saveRouteIssues();
     showToast("Замечание удалено");
+  }
+
+  function renderCoordinateDrafts() {
+    if (!state.coordinateDraftLayer || !window.L) return;
+    state.coordinateDraftLayer.clearLayers();
+    state.edits.filter(edit => ["coordinate", "new-point"].includes(edit.field) && Array.isArray(edit.coordinates)).forEach(edit => {
+      const isNewPoint = edit.field === "new-point";
+      const marker = L.marker(edit.coordinates, {
+        icon: L.divIcon({
+          className: "",
+          html: `<div class="coordinate-draft-marker ${isNewPoint ? "coordinate-draft-marker--new" : ""}"><span>${isNewPoint ? "+" : "✓"}</span></div>`,
+          iconSize: [34, 34],
+          iconAnchor: [17, 34],
+          popupAnchor: [0, -32]
+        })
+      }).addTo(state.coordinateDraftLayer);
+      marker.bindPopup(`<strong>${escapeHtml(edit.pointName)}</strong><br><small>${isNewPoint ? "Новая экскурсионная точка" : "Уточнение координаты"}</small>${edit.source ? `<br><small>${escapeHtml(edit.source)}</small>` : ""}<br><button class="popup-button" onclick="window.deleteKemCoordinateDraft('${edit.id}')">Удалить черновик</button>`);
+    });
+  }
+
+  function deleteCoordinateDraft(editId) {
+    state.edits = state.edits.filter(edit => edit.id !== editId);
+    localStorage.setItem(STORAGE_EDITS, JSON.stringify(state.edits));
+    renderCoordinateDrafts();
+    showToast("Черновик точки удалён");
+  }
+
+  function updateCoordinatePointMode() {
+    const isNewPoint = document.querySelector("#coordinatePoint").value === "__new__";
+    els.coordinateNewPointLabel.hidden = !isNewPoint;
+    els.coordinateNewPointName.required = isNewPoint;
+    if (isNewPoint) els.coordinateNewPointName.focus();
+    else els.coordinateNewPointName.value = "";
   }
 
   function captureCoordinate(latlng) {
@@ -501,6 +539,7 @@
   window.openKemPoint = openPoint;
   window.openKemPhoto = openPhoto;
   window.deleteKemRouteIssue = deleteRouteIssue;
+  window.deleteKemCoordinateDraft = deleteCoordinateDraft;
 
   document.addEventListener("click", event => {
     const pointCard = event.target.closest("[data-point-id]");
@@ -612,13 +651,21 @@
   els.coordinateForm.addEventListener("submit", event => {
     event.preventDefault();
     const formData = new FormData(els.coordinateForm);
-    const planned = route.plannedPoints.find(point => point.id === formData.get("pointId"));
+    const isNewPoint = formData.get("pointId") === "__new__";
+    const planned = isNewPoint ? null : route.plannedPoints.find(point => point.id === formData.get("pointId"));
+    const proposalId = crypto.randomUUID ? crypto.randomUUID() : `coordinate-${Date.now()}`;
+    const pointName = isNewPoint ? String(formData.get("newPointName") || "").trim() : (planned ? planned.title : formData.get("pointId"));
+    if (isNewPoint && !pointName) {
+      showToast("Введите название новой точки");
+      els.coordinateNewPointName.focus();
+      return;
+    }
     state.edits.push({
-      id: crypto.randomUUID ? crypto.randomUUID() : `coordinate-${Date.now()}`,
-      pointId: formData.get("pointId"),
-      pointName: planned ? planned.title : formData.get("pointId"),
-      field: "coordinate",
-      text: `${formData.get("lat")}, ${formData.get("lng")}`,
+      id: proposalId,
+      pointId: isNewPoint ? `new-${proposalId}` : formData.get("pointId"),
+      pointName,
+      field: isNewPoint ? "new-point" : "coordinate",
+      text: isNewPoint ? `${pointName}: ${formData.get("lat")}, ${formData.get("lng")}` : `${formData.get("lat")}, ${formData.get("lng")}`,
       coordinates: [Number(formData.get("lat")), Number(formData.get("lng"))],
       source: formData.get("note"),
       author: formData.get("author"),
@@ -626,8 +673,15 @@
       status: "field-draft"
     });
     localStorage.setItem(STORAGE_EDITS, JSON.stringify(state.edits));
+    if (state.coordinateMarker) {
+      state.coordinateMarker.remove();
+      state.coordinateMarker = null;
+    }
+    renderCoordinateDrafts();
     els.coordinateDialog.close();
-    showToast("Координата сохранена как редакционный черновик");
+    els.coordinateForm.reset();
+    updateCoordinatePointMode();
+    showToast(isNewPoint ? "Новая точка сохранена как черновик" : "Координата сохранена как редакционный черновик");
   });
 
   els.routeIssueForm.addEventListener("submit", event => {
@@ -648,7 +702,8 @@
     showToast("Замечание появилось на карте и сохранено на этом устройстве");
   });
 
-  document.querySelector("#coordinatePoint").innerHTML = route.plannedPoints.map(point => `<option value="${point.id}">${point.number}. ${point.title}${point.status === "ready" ? " — есть координата" : ""}</option>`).join("");
+  document.querySelector("#coordinatePoint").innerHTML = `<option value="">Выберите точку</option><option value="__new__">＋ Добавить новую точку</option>${route.plannedPoints.map(point => `<option value="${point.id}">${point.number}. ${point.title}${point.status === "ready" ? " — есть координата" : ""}</option>`).join("")}`;
+  document.querySelector("#coordinatePoint").addEventListener("change", updateCoordinatePointMode);
 
   renderFilters();
   renderPoints();
@@ -657,6 +712,7 @@
   renderPhotos();
   updateProgress();
   renderRouteIssues();
+  renderCoordinateDrafts();
   initMap();
 
   if ("serviceWorker" in navigator) {
