@@ -64,6 +64,7 @@ h1 span { color: var(--red); }
 .workspace__body { position: relative; max-width: 1480px; min-height: 700px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 410px; background: white; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .map-panel { position: relative; min-width: 0; }
 #map { width: 100%; height: 700px; background: #dfe8ec; }
+.map-tiles--quiet { filter: grayscale(.72) saturate(.35) contrast(.86) brightness(1.1); }
 .map-actions { position: absolute; z-index: 500; top: 14px; left: 54px; right: 14px; display: flex; flex-wrap: wrap; gap: 7px; pointer-events: none; }
 .map-action { min-height: 40px; padding: 8px 12px; border: 1px solid rgba(16,42,67,.16); border-radius: 11px; background: rgba(255,255,255,.96); color: var(--navy); box-shadow: 0 5px 18px rgba(16,42,67,.14); font-size: 12px; font-weight: 800; pointer-events: auto; }
 .map-action:hover, .map-action.is-active { color: white; background: var(--navy); border-color: var(--navy); }
