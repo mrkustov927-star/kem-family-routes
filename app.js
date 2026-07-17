@@ -6,6 +6,7 @@
   const STORAGE_EDITS = "kem-route-edits-v1";
   const state = {
     filter: "all",
+    planFilter: "all",
     currentPointIndex: 0,
     completed: new Set(readStorage(STORAGE_PROGRESS, [])),
     edits: readStorage(STORAGE_EDITS, []),
@@ -27,6 +28,10 @@
     guideStep: document.querySelector("#guideStep"),
     progressText: document.querySelector("#progressText"),
     progressBar: document.querySelector("#progressBar"),
+    planFilters: document.querySelector("#planFilters"),
+    planGrid: document.querySelector("#planGrid"),
+    readyCount: document.querySelector("#readyCount"),
+    readinessBar: document.querySelector("#readinessBar"),
     toast: document.querySelector("#toast")
   };
 
@@ -99,6 +104,25 @@
     els.chapterFilter.innerHTML = items.map(item => `<button class="filter-chip ${item.id === state.filter ? "is-active" : ""}" type="button" data-filter="${item.id}">${item.title}</button>`).join("");
   }
 
+  function renderPlanFilters() {
+    const items = [{ id: "all", title: "Все главы" }, ...route.chapters];
+    els.planFilters.innerHTML = items.map(item => `<button class="filter-chip ${item.id === state.planFilter ? "is-active" : ""}" type="button" data-plan-filter="${item.id}">${item.title}</button>`).join("");
+  }
+
+  function renderPlan() {
+    const ready = route.plannedPoints.filter(point => point.status === "ready").length;
+    els.readyCount.textContent = ready;
+    els.readinessBar.style.width = `${(ready / route.plannedPoints.length) * 100}%`;
+    const visible = state.planFilter === "all" ? route.plannedPoints : route.plannedPoints.filter(point => point.chapter === state.planFilter);
+    els.planGrid.innerHTML = visible.map(point => {
+      const isReady = point.status === "ready";
+      const action = isReady
+        ? `<button class="plan-action" type="button" data-open-plan="${point.id}">Открыть карточку →</button>`
+        : `<button class="plan-action" type="button" data-edit-point="${point.id}">Добавить материал →</button>`;
+      return `<li class="plan-item ${isReady ? "plan-item--ready" : ""}"><span class="plan-item__number">${point.number}</span><div><h3>${point.title}</h3><div class="plan-item__meta"><span class="plan-status">${isReady ? "✓ карточка готова" : "○ исследуем"}</span>${action}</div></div></li>`;
+    }).join("");
+  }
+
   function renderPoints() {
     const visible = state.filter === "all" ? route.points : route.points.filter(point => point.chapter === state.filter);
     els.pointsList.innerHTML = visible.map(point => {
@@ -147,7 +171,7 @@
   }
 
   function openEdit(pointId) {
-    const point = route.points.find(item => item.id === pointId);
+    const point = route.points.find(item => item.id === pointId) || route.plannedPoints.find(item => item.id === pointId);
     if (!point) return;
     els.pointDialog.close();
     els.editForm.reset();
@@ -227,6 +251,8 @@
     const completeButton = event.target.closest("[data-complete-point]");
     const closeButton = event.target.closest("[data-close-dialog]");
     const filterButton = event.target.closest("[data-filter]");
+    const planFilterButton = event.target.closest("[data-plan-filter]");
+    const openPlanButton = event.target.closest("[data-open-plan]");
 
     if (pointCard) {
       openPoint(pointCard.dataset.pointId);
@@ -239,6 +265,15 @@
       state.filter = filterButton.dataset.filter;
       renderFilters();
       renderPoints();
+    }
+    if (planFilterButton) {
+      state.planFilter = planFilterButton.dataset.planFilter;
+      renderPlanFilters();
+      renderPlan();
+    }
+    if (openPlanButton) {
+      openPoint(openPlanButton.dataset.openPlan);
+      document.querySelector(".workspace").scrollIntoView({ behavior: "smooth", block: "start" });
     }
   });
 
@@ -296,6 +331,8 @@
 
   renderFilters();
   renderPoints();
+  renderPlanFilters();
+  renderPlan();
   updateProgress();
   initMap();
 
