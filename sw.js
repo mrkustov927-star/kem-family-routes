@@ -1,4 +1,4 @@
-const CACHE_NAME = "kem-family-routes-v11";
+const CACHE_NAME = "kem-family-routes-v12";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -28,8 +28,13 @@ self.addEventListener("install", event => {
 });
 
 self.addEventListener("activate", event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))));
-  self.clients.claim();
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: "window" }))
+      .then(clients => Promise.all(clients.map(client => client.navigate(client.url))))
+  );
 });
 
 self.addEventListener("fetch", event => {
