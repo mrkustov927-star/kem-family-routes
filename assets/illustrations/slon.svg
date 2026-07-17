@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" role="img" aria-labelledby="title desc">
+  <title id="title">Здание бывшей конторы СЛОНа</title><desc id="desc">Сдержанная иллюстрация исторического здания и документов</desc>
+  <rect width="900" height="650" fill="#102a43"/><path d="M0 0h900v650H0z" fill="none" stroke="#28465c" stroke-width="44"/>
+  <path d="M172 217h491v337H172Z" fill="#d7c9ae" stroke="#fff" stroke-width="9"/><path d="m131 221 286-145 288 145Z" fill="#6c5342" stroke="#fff" stroke-width="9"/>
+  <g fill="#102a43" stroke="#fff" stroke-width="7"><path d="M224 282h78v98h-78zM350 282h78v98h-78zM476 282h78v98h-78zM602 282h28v98h-28z"/><path d="M357 429h120v125H357z"/></g>
+  <g transform="rotate(-8 700 430)"><path d="M610 329h202v249H610Z" fill="#f6f3ec" stroke="#e21f26" stroke-width="8"/><path d="M642 379h138M642 418h138M642 457h115M642 496h126" stroke="#8796a1" stroke-width="8"/><circle cx="714" cy="542" r="25" fill="none" stroke="#e21f26" stroke-width="8"/></g>
+  <text x="52" y="68" fill="#fff" font-family="Arial" font-size="32" font-weight="700">ТОЧКА 04</text><text x="52" y="112" fill="#f4b740" font-family="Arial" font-size="45" font-weight="900">ПАМЯТЬ И ДОКУМЕНТ</text>
+</svg>

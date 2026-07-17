@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" role="img" aria-labelledby="title desc">
+  <title id="title">Водонапорная башня</title><desc id="desc">Стилизованная башня как городской маяк</desc>
+  <defs><linearGradient id="b" x2="0" y2="1"><stop stop-color="#1769aa"/><stop offset="1" stop-color="#102a43"/></linearGradient><pattern id="brick" width="38" height="22" patternUnits="userSpaceOnUse"><path d="M0 0h38v22H0z" fill="#c46f49"/><path d="M0 0h38M0 22h38M19 0v11M0 11h38M0 11v11M38 11v11" stroke="#9c4c35" stroke-width="2"/></pattern></defs>
+  <rect width="900" height="650" fill="url(#b)"/><path d="M0 510c170-55 296-31 412 15 163 64 309 47 488-35v160H0Z" fill="#dff4ff"/>
+  <path d="M350 214h200l38 322H312Z" fill="url(#brick)" stroke="#fff" stroke-width="10"/><path d="M296 165h308l-26 78H322Z" fill="#f6f3ec" stroke="#fff" stroke-width="9"/><path d="M329 106h242l37 64H292Z" fill="#e21f26" stroke="#fff" stroke-width="9"/><path d="M438 63h24v45h-24z" fill="#fff"/><circle cx="450" cy="58" r="13" fill="#f4b740"/>
+  <path d="M416 300h68v96h-68zM407 452h86v84h-86z" fill="#102a43" stroke="#fff" stroke-width="7"/>
+  <g fill="none" stroke="#f4b740" stroke-width="8" opacity=".9"><path d="M614 106c81 14 139 58 174 132"/><path d="M627 142c58 15 101 48 130 101"/><path d="M286 106c-81 14-139 58-174 132"/><path d="M273 142c-58 15-101 48-130 101"/></g>
+  <text x="52" y="78" fill="#fff" font-family="Arial" font-size="32" font-weight="700">ТОЧКА 02</text><text x="52" y="120" fill="#f4b740" font-family="Arial" font-size="42" font-weight="900">МАЯК БЕЛОГО МОРЯ</text>
+</svg>
