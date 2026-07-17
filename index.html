@@ -63,6 +63,7 @@
             <button class="map-action" id="locateButton" type="button"><span aria-hidden="true">◎</span> Я здесь</button>
             <button class="map-action" id="fitRouteButton" type="button"><span aria-hidden="true">⌖</span> Весь маршрут</button>
             <button class="map-action" id="coordinateModeButton" type="button" aria-pressed="false"><span aria-hidden="true">＋</span> Поставить точку</button>
+            <button class="map-action" id="routeReviewButton" type="button" aria-pressed="false"><span aria-hidden="true">!</span> Проверить путь</button>
             <button class="map-action" id="photosButton" type="button" aria-pressed="false"><span aria-hidden="true">▣</span> Фотографии</button>
             <button class="map-action" id="fullscreenMapButton" type="button"><span aria-hidden="true">⛶</span> На весь экран</button>
           </div>
@@ -73,6 +74,7 @@
             <span><i class="dot dot--ready"></i> координата проверена</span>
             <span><i class="dot dot--check"></i> нужна полевая проверка</span>
             <span><i class="dot dot--photo"></i> фотография точки</span>
+            <span><i class="dot dot--issue"></i> <span id="routeIssueCount">замечаний: 0</span></span>
           </div>
           <button class="map-list-toggle" id="mapListToggle" type="button">Показать список</button>
         </div>
@@ -189,6 +191,23 @@
       <label>Комментарий<textarea name="note" rows="3" placeholder="Например: безопасная площадка напротив входа"></textarea></label>
       <label>Кто проверил<input name="author" autocomplete="name" placeholder="Имя участника"></label>
       <div class="dialog-actions"><button class="button button--ghost" type="button" data-close-dialog="coordinateDialog">Отмена</button><button class="button button--primary" type="submit">Сохранить координату</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="route-issue-dialog" id="routeIssueDialog">
+    <form class="dialog-shell edit-form" id="routeIssueForm">
+      <button class="dialog-close" type="button" data-close-dialog="routeIssueDialog" aria-label="Закрыть">×</button>
+      <p class="eyebrow">Полевая проверка пути</p>
+      <h2>Что здесь нужно исправить?</h2>
+      <p class="muted">Замечание сохранится на этом устройстве и появится на карте оранжевой меткой.</p>
+      <div class="coordinate-fields">
+        <label>Широта<input id="routeIssueLat" name="lat" inputmode="decimal" readonly></label>
+        <label>Долгота<input id="routeIssueLng" name="lng" inputmode="decimal" readonly></label>
+      </div>
+      <label>Тип проблемы<select name="type" required><option value="">Выберите</option><option value="closed">Проход закрыт</option><option value="crossing">Опасный переход</option><option value="sidewalk">Нет тротуара</option><option value="geometry">Линия идёт не по дороге</option><option value="stop">Нет безопасного места для группы</option><option value="other">Другое</option></select></label>
+      <label>Что заметили?<textarea name="detail" rows="4" required placeholder="Например: калитка закрыта, нужно пройти по соседней улице"></textarea></label>
+      <label>Кто проверил<input name="author" autocomplete="name" placeholder="Имя участника"></label>
+      <div class="dialog-actions"><button class="button button--ghost" type="button" data-close-dialog="routeIssueDialog">Отмена</button><button class="button button--primary" type="submit">Сохранить замечание</button></div>
     </form>
   </dialog>
 

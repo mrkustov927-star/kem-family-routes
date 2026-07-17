@@ -7,17 +7,29 @@
   const guidedPoints = [...route.points].sort((a, b) => a.number - b.number);
   const STORAGE_PROGRESS = "kem-route-progress-v1";
   const STORAGE_EDITS = "kem-route-edits-v1";
+  const STORAGE_ROUTE_ISSUES = "kem-route-issues-v1";
+  const ROUTE_ISSUE_TYPES = {
+    closed: "Проход закрыт",
+    crossing: "Опасный переход",
+    sidewalk: "Нет тротуара",
+    geometry: "Линия идёт не по дороге",
+    stop: "Нет безопасного места для группы",
+    other: "Другое"
+  };
   const state = {
     filter: "all",
     planFilter: "all",
     currentPointIndex: 0,
     completed: new Set(readStorage(STORAGE_PROGRESS, [])),
     edits: readStorage(STORAGE_EDITS, []),
+    routeIssues: readStorage(STORAGE_ROUTE_ISSUES, []),
     markers: new Map(),
     map: null,
     routeLayer: null,
     photoLayer: null,
+    routeIssueLayer: null,
     coordinateMode: false,
+    routeReviewMode: false,
     coordinateMarker: null,
     userMarker: null,
     accuracyCircle: null,
@@ -48,6 +60,9 @@
     photoDialogContent: document.querySelector("#photoDialogContent"),
     coordinateDialog: document.querySelector("#coordinateDialog"),
     coordinateForm: document.querySelector("#coordinateForm"),
+    routeIssueDialog: document.querySelector("#routeIssueDialog"),
+    routeIssueForm: document.querySelector("#routeIssueForm"),
+    routeIssueCount: document.querySelector("#routeIssueCount"),
     routeDistance: document.querySelector("#routeDistance"),
     routeWalkingTime: document.querySelector("#routeWalkingTime"),
     toast: document.querySelector("#toast")
@@ -79,6 +94,12 @@
     els.toast.classList.add("is-visible");
     window.clearTimeout(showToast.timer);
     showToast.timer = window.setTimeout(() => els.toast.classList.remove("is-visible"), 2600);
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+    })[character]);
   }
 
   function initMap() {
@@ -188,12 +209,15 @@
       marker.addTo(state.photoLayer);
     });
 
+    state.routeIssueLayer = L.layerGroup().addTo(state.map);
+    renderRouteIssues();
+
     const bounds = L.latLngBounds(routeLine);
     state.map.fitBounds(bounds, { padding: [45, 45] });
 
     L.control.layers(
       { "Современная карта": streetMap, "Спокойная схема": quietMap, "OpenStreetMap": osmMap },
-      { "Маршрут экскурсии": state.routeLayer, "Фотографии точек": state.photoLayer },
+      { "Маршрут экскурсии": state.routeLayer, "Фотографии точек": state.photoLayer, "Полевые замечания": state.routeIssueLayer },
       { position: "bottomright", collapsed: true }
     ).addTo(state.map);
     state.map.on("overlayadd overlayremove", event => {
@@ -203,7 +227,8 @@
       document.querySelector("#photosButton").setAttribute("aria-pressed", String(visible));
     });
     state.map.on("click", event => {
-      if (state.coordinateMode) captureCoordinate(event.latlng);
+      if (state.routeReviewMode) captureRouteIssue(event.latlng);
+      else if (state.coordinateMode) captureCoordinate(event.latlng);
     });
     state.map.on("locationfound", showUserLocation);
     state.map.on("locationerror", () => showToast("Не удалось определить местоположение. Проверьте разрешение геолокации."));
@@ -266,12 +291,61 @@
   }
 
   function setCoordinateMode(enabled) {
+    if (enabled && state.routeReviewMode) setRouteReviewMode(false);
     state.coordinateMode = enabled;
     els.mapPanel.classList.toggle("is-coordinate-mode", enabled);
     const button = document.querySelector("#coordinateModeButton");
     button.classList.toggle("is-active", enabled);
     button.setAttribute("aria-pressed", String(enabled));
     if (enabled) showToast("Нажмите на карте в месте остановки группы");
+  }
+
+  function setRouteReviewMode(enabled) {
+    if (enabled && state.coordinateMode) setCoordinateMode(false);
+    state.routeReviewMode = enabled;
+    els.mapPanel.classList.toggle("is-route-review-mode", enabled);
+    const button = document.querySelector("#routeReviewButton");
+    button.classList.toggle("is-active", enabled);
+    button.setAttribute("aria-pressed", String(enabled));
+    if (enabled) showToast("Нажмите на проблемное место красной линии");
+  }
+
+  function captureRouteIssue(latlng) {
+    setRouteReviewMode(false);
+    document.querySelector("#routeIssueLat").value = latlng.lat.toFixed(6);
+    document.querySelector("#routeIssueLng").value = latlng.lng.toFixed(6);
+    els.routeIssueDialog.showModal();
+  }
+
+  function saveRouteIssues() {
+    localStorage.setItem(STORAGE_ROUTE_ISSUES, JSON.stringify(state.routeIssues));
+    renderRouteIssues();
+  }
+
+  function renderRouteIssues() {
+    els.routeIssueCount.textContent = `замечаний: ${state.routeIssues.length}`;
+    if (!state.routeIssueLayer || !window.L) return;
+    state.routeIssueLayer.clearLayers();
+    state.routeIssues.forEach(issue => {
+      if (!Array.isArray(issue.coordinates) || issue.coordinates.length !== 2) return;
+      const typeLabel = ROUTE_ISSUE_TYPES[issue.type] || ROUTE_ISSUE_TYPES.other;
+      const marker = L.marker(issue.coordinates, {
+        icon: L.divIcon({
+          className: "",
+          html: '<div class="route-issue-marker"><span>!</span></div>',
+          iconSize: [34, 34],
+          iconAnchor: [17, 34],
+          popupAnchor: [0, -32]
+        })
+      }).addTo(state.routeIssueLayer);
+      marker.bindPopup(`<strong>${escapeHtml(typeLabel)}</strong><br><small>${escapeHtml(issue.detail || "Без комментария")}</small><br><button class="popup-button" onclick="window.deleteKemRouteIssue('${issue.id}')">Удалить замечание</button>`);
+    });
+  }
+
+  function deleteRouteIssue(issueId) {
+    state.routeIssues = state.routeIssues.filter(issue => issue.id !== issueId);
+    saveRouteIssues();
+    showToast("Замечание удалено");
   }
 
   function captureCoordinate(latlng) {
@@ -404,11 +478,17 @@
   }
 
   function exportEdits() {
-    if (!state.edits.length) {
+    if (!state.edits.length && !state.routeIssues.length) {
       showToast("Сохранённых предложений пока нет");
       return;
     }
-    const payload = { project: route.title, exportedAt: new Date().toISOString(), proposals: state.edits };
+    const payload = {
+      project: route.title,
+      exportedAt: new Date().toISOString(),
+      routeGeometryVersion: routeGeometry?.version || null,
+      proposals: state.edits,
+      routeIssues: state.routeIssues
+    };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -420,6 +500,7 @@
 
   window.openKemPoint = openPoint;
   window.openKemPhoto = openPhoto;
+  window.deleteKemRouteIssue = deleteRouteIssue;
 
   document.addEventListener("click", event => {
     const pointCard = event.target.closest("[data-point-id]");
@@ -487,6 +568,7 @@
     showToast(visible ? "Фотографии скрыты" : "Фотографии показаны на карте");
   });
   document.querySelector("#coordinateModeButton").addEventListener("click", () => setCoordinateMode(!state.coordinateMode));
+  document.querySelector("#routeReviewButton").addEventListener("click", () => setRouteReviewMode(!state.routeReviewMode));
   document.querySelector("#locateButton").addEventListener("click", () => {
     if (!state.map) return;
     showToast("Определяем местоположение…");
@@ -548,6 +630,24 @@
     showToast("Координата сохранена как редакционный черновик");
   });
 
+  els.routeIssueForm.addEventListener("submit", event => {
+    event.preventDefault();
+    const formData = new FormData(els.routeIssueForm);
+    state.routeIssues.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : `route-issue-${Date.now()}`,
+      type: formData.get("type"),
+      detail: formData.get("detail"),
+      coordinates: [Number(formData.get("lat")), Number(formData.get("lng"))],
+      author: formData.get("author"),
+      createdAt: new Date().toISOString(),
+      status: "field-draft"
+    });
+    saveRouteIssues();
+    els.routeIssueDialog.close();
+    els.routeIssueForm.reset();
+    showToast("Замечание появилось на карте и сохранено на этом устройстве");
+  });
+
   document.querySelector("#coordinatePoint").innerHTML = route.plannedPoints.map(point => `<option value="${point.id}">${point.number}. ${point.title}${point.status === "ready" ? " — есть координата" : ""}</option>`).join("");
 
   renderFilters();
@@ -556,6 +656,7 @@
   renderPlan();
   renderPhotos();
   updateProgress();
+  renderRouteIssues();
   initMap();
 
   if ("serviceWorker" in navigator) {
