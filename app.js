@@ -83,17 +83,58 @@
       return;
     }
 
-    state.map = L.map("map", { zoomControl: true, scrollWheelZoom: false }).setView([64.953, 34.594], 14);
+    state.map = L.map("map", {
+      zoomControl: true,
+      scrollWheelZoom: true,
+      touchZoom: true,
+      doubleClickZoom: true,
+      dragging: true,
+      keyboard: true,
+      zoomSnap: .5,
+      zoomDelta: .5,
+      wheelPxPerZoomLevel: 100
+    }).setView([64.953, 34.594], 14);
     const tileOptions = {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      maxZoom: 20,
+      keepBuffer: 6,
+      updateWhenIdle: false,
+      updateWhenZooming: true,
+      crossOrigin: true
     };
-    const streetMap = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", tileOptions).addTo(state.map);
-    const quietMap = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", tileOptions);
-    quietMap.on("add", () => window.setTimeout(() => {
-      const container = quietMap.getContainer();
-      if (container) container.classList.add("map-tiles--quiet");
-    }, 0));
+    const cartoAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+    const osmAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+    const streetMap = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+      ...tileOptions,
+      subdomains: "abcd",
+      attribution: cartoAttribution
+    }).addTo(state.map);
+    const quietMap = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+      ...tileOptions,
+      subdomains: "abcd",
+      attribution: cartoAttribution
+    });
+    const osmMap = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      ...tileOptions,
+      maxZoom: 19,
+      subdomains: "abc",
+      attribution: osmAttribution
+    });
+
+    [streetMap, quietMap, osmMap].forEach(layer => {
+      layer.on("loading", () => els.mapPanel.classList.add("is-map-loading"));
+      layer.on("load", () => els.mapPanel.classList.remove("is-map-loading"));
+      layer.on("tileerror", event => {
+        const tile = event.tile;
+        if (!tile || tile.dataset.retryAttempted === "true") return;
+        const source = event.url || tile.currentSrc || tile.src;
+        if (!source) return;
+        tile.dataset.retryAttempted = "true";
+        window.setTimeout(() => {
+          const separator = source.includes("?") ? "&" : "?";
+          tile.src = `${source}${separator}retry=1`;
+        }, 350);
+      });
+    });
 
     state.routeLayer = L.layerGroup().addTo(state.map);
     const routeLine = guidedPoints.map(point => point.coordinates);
@@ -137,7 +178,7 @@
     state.map.fitBounds(bounds, { padding: [45, 45] });
 
     L.control.layers(
-      { "Карта улиц": streetMap, "Спокойная схема": quietMap },
+      { "Современная карта": streetMap, "Спокойная схема": quietMap, "OpenStreetMap": osmMap },
       { "Маршрут экскурсии": state.routeLayer, "Фотографии точек": state.photoLayer },
       { position: "bottomright", collapsed: true }
     ).addTo(state.map);
@@ -152,6 +193,24 @@
     });
     state.map.on("locationfound", showUserLocation);
     state.map.on("locationerror", () => showToast("Не удалось определить местоположение. Проверьте разрешение геолокации."));
+  }
+
+  function fitWholeRoute() {
+    if (!state.map) return;
+    state.map.fitBounds(L.latLngBounds(guidedPoints.map(point => point.coordinates)), { padding: [55, 55] });
+  }
+
+  async function toggleMapFullscreen() {
+    const panel = els.mapPanel;
+    if (!document.fullscreenElement) {
+      if (!panel.requestFullscreen) {
+        showToast("Полноэкранный режим не поддерживается этим браузером");
+        return;
+      }
+      await panel.requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
   }
 
   function renderFilters() {
@@ -417,6 +476,14 @@
     if (!state.map) return;
     showToast("Определяем местоположение…");
     state.map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true, timeout: 12000 });
+  });
+  document.querySelector("#fitRouteButton").addEventListener("click", fitWholeRoute);
+  document.querySelector("#fullscreenMapButton").addEventListener("click", () => toggleMapFullscreen().catch(() => showToast("Не удалось открыть карту на весь экран")));
+  document.addEventListener("fullscreenchange", () => {
+    const fullscreen = document.fullscreenElement === els.mapPanel;
+    document.querySelector("#fullscreenMapButton").classList.toggle("is-active", fullscreen);
+    document.querySelector("#fullscreenMapButton").textContent = fullscreen ? "× Закрыть" : "⛶ На весь экран";
+    window.setTimeout(() => state.map && state.map.invalidateSize(), 80);
   });
   document.querySelector("#exportButton").addEventListener("click", exportEdits);
   document.querySelector("#resetProgressButton").addEventListener("click", () => {

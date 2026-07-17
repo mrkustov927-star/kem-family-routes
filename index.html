@@ -61,10 +61,13 @@
         <div class="map-panel">
           <div class="map-actions" aria-label="Инструменты карты">
             <button class="map-action" id="locateButton" type="button"><span aria-hidden="true">◎</span> Я здесь</button>
+            <button class="map-action" id="fitRouteButton" type="button"><span aria-hidden="true">⌖</span> Весь маршрут</button>
             <button class="map-action" id="coordinateModeButton" type="button" aria-pressed="false"><span aria-hidden="true">＋</span> Поставить точку</button>
             <button class="map-action" id="photosButton" type="button" aria-pressed="false"><span aria-hidden="true">▣</span> Фотографии</button>
+            <button class="map-action" id="fullscreenMapButton" type="button"><span aria-hidden="true">⛶</span> На весь экран</button>
           </div>
           <div id="map" aria-label="Карта маршрута по Кеми"></div>
+          <div class="map-loading" aria-hidden="true"><span></span> Загружаем карту…</div>
           <div class="map-legend">
             <span><i class="dot dot--ready"></i> координата проверена</span>
             <span><i class="dot dot--check"></i> нужна полевая проверка</span>
