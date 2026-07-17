@@ -52,7 +52,7 @@
           <button class="segmented__button" data-view="guide" type="button">Провожу экскурсию</button>
         </div>
         <div class="route-progress" aria-live="polite">
-          <span id="progressText">0 из 5 точек</span>
+          <span id="progressText">0 из 10 точек</span>
           <span class="route-progress__track"><span id="progressBar"></span></span>
         </div>
       </div>
@@ -62,12 +62,13 @@
           <div class="map-actions" aria-label="Инструменты карты">
             <button class="map-action" id="locateButton" type="button"><span aria-hidden="true">◎</span> Я здесь</button>
             <button class="map-action" id="coordinateModeButton" type="button" aria-pressed="false"><span aria-hidden="true">＋</span> Поставить точку</button>
-            <button class="map-action" id="photosButton" type="button"><span aria-hidden="true">▣</span> Фотографии</button>
+            <button class="map-action" id="photosButton" type="button" aria-pressed="false"><span aria-hidden="true">▣</span> Фотографии</button>
           </div>
           <div id="map" aria-label="Карта маршрута по Кеми"></div>
           <div class="map-legend">
             <span><i class="dot dot--ready"></i> координата проверена</span>
             <span><i class="dot dot--check"></i> нужна полевая проверка</span>
+            <span><i class="dot dot--photo"></i> фотография точки</span>
           </div>
           <button class="map-list-toggle" id="mapListToggle" type="button">Показать список</button>
         </div>
@@ -75,8 +76,8 @@
         <aside class="points-panel" id="pointsPanel" aria-label="Точки маршрута">
           <div class="points-panel__heading">
             <div>
-              <p class="eyebrow">Тестовый фрагмент</p>
-              <h2>5 точек маршрута</h2>
+              <p class="eyebrow">Рабочий маршрут</p>
+              <h2>Готовые точки</h2>
             </div>
             <button class="icon-button points-panel__close" id="closeListButton" type="button" aria-label="Закрыть список">×</button>
           </div>
@@ -87,7 +88,7 @@
         <section class="guide-panel" id="guidePanel" aria-label="Режим экскурсовода" hidden>
           <div class="guide-panel__top">
             <button class="text-button" id="exitGuideButton" type="button">← К карте</button>
-            <span class="guide-step" id="guideStep">Точка 1 из 5</span>
+            <span class="guide-step" id="guideStep">Точка 1 из 10</span>
           </div>
           <article id="guideContent"></article>
           <div class="guide-panel__actions">
@@ -114,7 +115,7 @@
           <p>Готовые карточки уже открываются на карте. По остальным точкам можно собирать факты, адреса, воспоминания и фотографии.</p>
         </div>
         <div class="readiness" aria-label="Готовность материалов">
-          <strong id="readyCount">5</strong><span>карточек готовы</span>
+          <strong id="readyCount">10</strong><span>карточек готовы</span>
           <span class="readiness__bar"><i id="readinessBar"></i></span>
         </div>
       </div>
@@ -157,8 +158,8 @@
       <button class="dialog-close" value="close" aria-label="Закрыть">×</button>
       <p class="eyebrow">О проекте</p>
       <h2>Историю города собираем вместе</h2>
-      <p>Это прототип помощника для юных экскурсоводов. Сейчас в нём пять тестовых точек. Координаты с жёлтой меткой нужно проверить на месте.</p>
-      <p>Архивные фотографии будут опубликованы после проверки подписей и прав использования.</p>
+      <p>Это прототип помощника для юных экскурсоводов. Подготовленные точки пополняются по мере проверки фактов, координат и мест показа. Координаты с жёлтой меткой нужно проверить на месте.</p>
+      <p>Фотографии с пометкой «автор уточняется» остаются редакционным материалом: перед окончательной публикацией нужно подтвердить подписи и права использования.</p>
       <button class="button button--primary" value="close">Понятно</button>
     </form>
   </dialog>
