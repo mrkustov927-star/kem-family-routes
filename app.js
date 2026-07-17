@@ -2,6 +2,7 @@
   "use strict";
 
   const route = window.KEM_ROUTE;
+  const photos = window.KEM_PHOTOS || [];
   const STORAGE_PROGRESS = "kem-route-progress-v1";
   const STORAGE_EDITS = "kem-route-edits-v1";
   const state = {
@@ -11,11 +12,17 @@
     completed: new Set(readStorage(STORAGE_PROGRESS, [])),
     edits: readStorage(STORAGE_EDITS, []),
     markers: new Map(),
-    map: null
+    map: null,
+    routeLayer: null,
+    coordinateMode: false,
+    coordinateMarker: null,
+    userMarker: null,
+    accuracyCircle: null
   };
 
   const els = {
     map: document.querySelector("#map"),
+    mapPanel: document.querySelector(".map-panel"),
     pointsList: document.querySelector("#pointsList"),
     pointsPanel: document.querySelector("#pointsPanel"),
     chapterFilter: document.querySelector("#chapterFilter"),
@@ -32,6 +39,11 @@
     planGrid: document.querySelector("#planGrid"),
     readyCount: document.querySelector("#readyCount"),
     readinessBar: document.querySelector("#readinessBar"),
+    photoStrip: document.querySelector("#photoStrip"),
+    photoDialog: document.querySelector("#photoDialog"),
+    photoDialogContent: document.querySelector("#photoDialogContent"),
+    coordinateDialog: document.querySelector("#coordinateDialog"),
+    coordinateForm: document.querySelector("#coordinateForm"),
     toast: document.querySelector("#toast")
   };
 
@@ -75,8 +87,9 @@
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(state.map);
 
+    state.routeLayer = L.layerGroup().addTo(state.map);
     const routeLine = route.points.map(point => point.coordinates);
-    L.polyline(routeLine, { color: "#e21f26", weight: 4, opacity: .82, dashArray: "9 9" }).addTo(state.map);
+    L.polyline(routeLine, { color: "#e21f26", weight: 4, opacity: .82, dashArray: "9 9" }).addTo(state.routeLayer);
 
     route.points.forEach(point => {
       const needsCheck = point.coordinateStatus === "needs-check";
@@ -88,7 +101,7 @@
           iconAnchor: [18, 38],
           popupAnchor: [0, -38]
         })
-      }).addTo(state.map);
+      }).addTo(state.routeLayer);
 
       marker.bindPopup(`<strong>${point.shortTitle}</strong><br><small>${needsCheck ? "Координату проверить" : "Координата проверена"}</small><br><button class="popup-button" onclick="window.openKemPoint('${point.id}')">Открыть подсказку →</button>`);
       marker.on("click", () => highlightPoint(point.id));
@@ -97,6 +110,13 @@
 
     const bounds = L.latLngBounds(routeLine);
     state.map.fitBounds(bounds, { padding: [45, 45] });
+
+    L.control.layers({}, { "Маршрут экскурсии": state.routeLayer }, { position: "bottomright", collapsed: true }).addTo(state.map);
+    state.map.on("click", event => {
+      if (state.coordinateMode) captureCoordinate(event.latlng);
+    });
+    state.map.on("locationfound", showUserLocation);
+    state.map.on("locationerror", () => showToast("Не удалось определить местоположение. Проверьте разрешение геолокации."));
   }
 
   function renderFilters() {
@@ -116,11 +136,56 @@
     const visible = state.planFilter === "all" ? route.plannedPoints : route.plannedPoints.filter(point => point.chapter === state.planFilter);
     els.planGrid.innerHTML = visible.map(point => {
       const isReady = point.status === "ready";
+      const photo = photos.find(item => item.pointId === point.id);
       const action = isReady
         ? `<button class="plan-action" type="button" data-open-plan="${point.id}">Открыть карточку →</button>`
         : `<button class="plan-action" type="button" data-edit-point="${point.id}">Добавить материал →</button>`;
-      return `<li class="plan-item ${isReady ? "plan-item--ready" : ""}"><span class="plan-item__number">${point.number}</span><div><h3>${point.title}</h3><div class="plan-item__meta"><span class="plan-status">${isReady ? "✓ карточка готова" : "○ исследуем"}</span>${action}</div></div></li>`;
+      const photoAction = photo ? `<button class="plan-action" type="button" data-photo-id="${photo.id}">▣ Есть фото</button>` : "";
+      return `<li class="plan-item ${isReady ? "plan-item--ready" : ""}"><span class="plan-item__number">${point.number}</span><div><h3>${point.title}</h3><div class="plan-item__meta"><span class="plan-status">${isReady ? "✓ карточка готова" : "○ исследуем"}</span>${photoAction}${action}</div></div></li>`;
     }).join("");
+  }
+
+  function renderPhotos() {
+    els.photoStrip.innerHTML = photos.map(photo => `<button class="photo-card" type="button" data-photo-id="${photo.id}"><img src="${photo.src}" alt="" loading="lazy"><span class="photo-card__copy"><span>Точка ${photo.pointNumber}</span><strong>${photo.title}</strong><small>${photo.date}</small></span></button>`).join("");
+  }
+
+  function openPhoto(photoId) {
+    const photo = photos.find(item => item.id === photoId);
+    if (!photo) return;
+    els.photoDialogContent.innerHTML = `<img class="photo-viewer__image" src="${photo.src}" alt="${photo.alt}"><div class="photo-viewer__copy"><p class="eyebrow">Фото · точка ${photo.pointNumber}</p><h2>${photo.title}</h2><p>${photo.caption}</p><div class="photo-meta"><div><strong>Дата</strong><span>${photo.date}</span></div><div><strong>Автор</strong><span>${photo.author}</span></div><div><strong>Источник</strong><span>${photo.source}</span></div><div><strong>Статус прав</strong><span>${photo.rightsStatus}</span></div></div><p><button class="text-button" type="button" data-edit-point="${photo.pointId}">Уточнить подпись или автора →</button></p></div>`;
+    els.photoDialog.showModal();
+  }
+
+  function setCoordinateMode(enabled) {
+    state.coordinateMode = enabled;
+    els.mapPanel.classList.toggle("is-coordinate-mode", enabled);
+    const button = document.querySelector("#coordinateModeButton");
+    button.classList.toggle("is-active", enabled);
+    button.setAttribute("aria-pressed", String(enabled));
+    if (enabled) showToast("Нажмите на карте в месте остановки группы");
+  }
+
+  function captureCoordinate(latlng) {
+    setCoordinateMode(false);
+    if (state.coordinateMarker) state.coordinateMarker.remove();
+    state.coordinateMarker = L.marker(latlng, {
+      icon: L.divIcon({ className: "", html: '<div class="coordinate-marker">＋</div>', iconSize: [30, 30], iconAnchor: [15, 15] })
+    }).addTo(state.map);
+    document.querySelector("#coordinateLat").value = latlng.lat.toFixed(6);
+    document.querySelector("#coordinateLng").value = latlng.lng.toFixed(6);
+    els.coordinateDialog.showModal();
+  }
+
+  function showUserLocation(event) {
+    if (state.userMarker) state.userMarker.remove();
+    if (state.accuracyCircle) state.accuracyCircle.remove();
+    state.userMarker = L.marker(event.latlng, {
+      icon: L.divIcon({ className: "", html: '<div class="user-marker"></div>', iconSize: [24, 24], iconAnchor: [12, 12] })
+    }).addTo(state.map).bindPopup("Вы находитесь здесь").openPopup();
+    state.accuracyCircle = L.circle(event.latlng, { radius: event.accuracy, color: "#1769aa", weight: 1, fillOpacity: .08 }).addTo(state.map);
+    const nearest = route.points.map(point => ({ point, distance: state.map.distance(event.latlng, point.coordinates) })).sort((a, b) => a.distance - b.distance)[0];
+    const distanceText = nearest.distance < 1000 ? `${Math.round(nearest.distance)} м` : `${(nearest.distance / 1000).toFixed(1)} км`;
+    showToast(`Ближайшая готовая точка — «${nearest.point.shortTitle}», ${distanceText}`);
   }
 
   function renderPoints() {
@@ -173,7 +238,8 @@
   function openEdit(pointId) {
     const point = route.points.find(item => item.id === pointId) || route.plannedPoints.find(item => item.id === pointId);
     if (!point) return;
-    els.pointDialog.close();
+    if (els.pointDialog.open) els.pointDialog.close();
+    if (els.photoDialog.open) els.photoDialog.close();
     els.editForm.reset();
     document.querySelector("#editPointId").value = point.id;
     document.querySelector("#editPointName").value = point.title;
@@ -253,6 +319,7 @@
     const filterButton = event.target.closest("[data-filter]");
     const planFilterButton = event.target.closest("[data-plan-filter]");
     const openPlanButton = event.target.closest("[data-open-plan]");
+    const photoButton = event.target.closest("[data-photo-id]");
 
     if (pointCard) {
       openPoint(pointCard.dataset.pointId);
@@ -275,6 +342,7 @@
       openPoint(openPlanButton.dataset.openPlan);
       document.querySelector(".workspace").scrollIntoView({ behavior: "smooth", block: "start" });
     }
+    if (photoButton) openPhoto(photoButton.dataset.photoId);
   });
 
   document.querySelector("#startTourButton").addEventListener("click", () => enterGuide(0));
@@ -302,6 +370,13 @@
   });
   document.querySelectorAll(".segmented__button").forEach(button => button.addEventListener("click", () => button.dataset.view === "guide" ? enterGuide(state.currentPointIndex) : exitGuide()));
   document.querySelector("#aboutButton").addEventListener("click", () => document.querySelector("#aboutDialog").showModal());
+  document.querySelector("#photosButton").addEventListener("click", () => document.querySelector("#photoStories").scrollIntoView({ behavior: "smooth", block: "start" }));
+  document.querySelector("#coordinateModeButton").addEventListener("click", () => setCoordinateMode(!state.coordinateMode));
+  document.querySelector("#locateButton").addEventListener("click", () => {
+    if (!state.map) return;
+    showToast("Определяем местоположение…");
+    state.map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true, timeout: 12000 });
+  });
   document.querySelector("#exportButton").addEventListener("click", exportEdits);
   document.querySelector("#resetProgressButton").addEventListener("click", () => {
     state.completed.clear();
@@ -329,10 +404,34 @@
     showToast("Предложение сохранено на этом устройстве");
   });
 
+  els.coordinateForm.addEventListener("submit", event => {
+    event.preventDefault();
+    const formData = new FormData(els.coordinateForm);
+    const planned = route.plannedPoints.find(point => point.id === formData.get("pointId"));
+    state.edits.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : `coordinate-${Date.now()}`,
+      pointId: formData.get("pointId"),
+      pointName: planned ? planned.title : formData.get("pointId"),
+      field: "coordinate",
+      text: `${formData.get("lat")}, ${formData.get("lng")}`,
+      coordinates: [Number(formData.get("lat")), Number(formData.get("lng"))],
+      source: formData.get("note"),
+      author: formData.get("author"),
+      createdAt: new Date().toISOString(),
+      status: "field-draft"
+    });
+    localStorage.setItem(STORAGE_EDITS, JSON.stringify(state.edits));
+    els.coordinateDialog.close();
+    showToast("Координата сохранена как редакционный черновик");
+  });
+
+  document.querySelector("#coordinatePoint").innerHTML = route.plannedPoints.map(point => `<option value="${point.id}">${point.number}. ${point.title}${point.status === "ready" ? " — есть координата" : ""}</option>`).join("");
+
   renderFilters();
   renderPoints();
   renderPlanFilters();
   renderPlan();
+  renderPhotos();
   updateProgress();
   initMap();
 

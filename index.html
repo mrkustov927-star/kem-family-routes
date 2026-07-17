@@ -59,6 +59,11 @@
 
       <div class="workspace__body">
         <div class="map-panel">
+          <div class="map-actions" aria-label="Инструменты карты">
+            <button class="map-action" id="locateButton" type="button"><span aria-hidden="true">◎</span> Я здесь</button>
+            <button class="map-action" id="coordinateModeButton" type="button" aria-pressed="false"><span aria-hidden="true">＋</span> Поставить точку</button>
+            <button class="map-action" id="photosButton" type="button"><span aria-hidden="true">▣</span> Фотографии</button>
+          </div>
           <div id="map" aria-label="Карта маршрута по Кеми"></div>
           <div class="map-legend">
             <span><i class="dot dot--ready"></i> координата проверена</span>
@@ -91,6 +96,14 @@
           </div>
         </section>
       </div>
+    </section>
+
+    <section class="photo-stories" id="photoStories" aria-labelledby="photoStoriesTitle">
+      <div class="photo-stories__heading">
+        <div><p class="eyebrow">Визуальный архив</p><h2 id="photoStoriesTitle">Кемь в деталях</h2></div>
+        <p>Первые фотографии уже связаны с точками маршрута. Подписи с пометкой «уточняется» ждут редакторской проверки.</p>
+      </div>
+      <div class="photo-strip" id="photoStrip"></div>
     </section>
 
     <section class="route-plan" id="routePlan" aria-labelledby="routePlanTitle">
@@ -150,6 +163,30 @@
     </form>
   </dialog>
 
+  <dialog class="photo-dialog" id="photoDialog">
+    <form method="dialog" class="dialog-shell photo-viewer">
+      <button class="dialog-close" value="close" aria-label="Закрыть">×</button>
+      <div id="photoDialogContent"></div>
+    </form>
+  </dialog>
+
+  <dialog class="coordinate-dialog" id="coordinateDialog">
+    <form class="dialog-shell edit-form" id="coordinateForm">
+      <button class="dialog-close" type="button" data-close-dialog="coordinateDialog" aria-label="Закрыть">×</button>
+      <p class="eyebrow">Полевая работа</p>
+      <h2>Зафиксировать координату</h2>
+      <p class="muted">Выберите объект и проверьте, что метка стоит в месте, где группа будет останавливаться.</p>
+      <label>Точка маршрута<select id="coordinatePoint" name="pointId" required></select></label>
+      <div class="coordinate-fields">
+        <label>Широта<input id="coordinateLat" name="lat" inputmode="decimal" readonly></label>
+        <label>Долгота<input id="coordinateLng" name="lng" inputmode="decimal" readonly></label>
+      </div>
+      <label>Комментарий<textarea name="note" rows="3" placeholder="Например: безопасная площадка напротив входа"></textarea></label>
+      <label>Кто проверил<input name="author" autocomplete="name" placeholder="Имя участника"></label>
+      <div class="dialog-actions"><button class="button button--ghost" type="button" data-close-dialog="coordinateDialog">Отмена</button><button class="button button--primary" type="submit">Сохранить координату</button></div>
+    </form>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <footer>
@@ -159,6 +196,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="./points.js"></script>
+  <script src="./photos.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
