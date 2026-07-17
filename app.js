@@ -82,10 +82,16 @@
     }
 
     state.map = L.map("map", { zoomControl: true, scrollWheelZoom: false }).setView([64.953, 34.594], 14);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    const tileOptions = {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(state.map);
+    };
+    const streetMap = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", tileOptions).addTo(state.map);
+    const quietMap = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", tileOptions);
+    quietMap.on("add", () => window.setTimeout(() => {
+      const container = quietMap.getContainer();
+      if (container) container.classList.add("map-tiles--quiet");
+    }, 0));
 
     state.routeLayer = L.layerGroup().addTo(state.map);
     const routeLine = route.points.map(point => point.coordinates);
@@ -111,7 +117,11 @@
     const bounds = L.latLngBounds(routeLine);
     state.map.fitBounds(bounds, { padding: [45, 45] });
 
-    L.control.layers({}, { "Маршрут экскурсии": state.routeLayer }, { position: "bottomright", collapsed: true }).addTo(state.map);
+    L.control.layers(
+      { "Карта улиц": streetMap, "Спокойная схема": quietMap },
+      { "Маршрут экскурсии": state.routeLayer },
+      { position: "bottomright", collapsed: true }
+    ).addTo(state.map);
     state.map.on("click", event => {
       if (state.coordinateMode) captureCoordinate(event.latlng);
     });
