@@ -1,9 +1,10 @@
-const CACHE_NAME = "kem-family-routes-v2";
+const CACHE_NAME = "kem-family-routes-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./points.js",
+  "./photos.js",
   "./app.js",
   "./manifest.webmanifest",
   "./assets/icon.svg",
@@ -11,7 +12,12 @@ const APP_SHELL = [
   "./assets/illustrations/tower.svg",
   "./assets/illustrations/officers-house.svg",
   "./assets/illustrations/slon.svg",
-  "./assets/illustrations/sea-rapid.svg"
+  "./assets/illustrations/sea-rapid.svg",
+  "./assets/photos/11-internationalists.webp",
+  "./assets/photos/16-lenin.webp",
+  "./assets/photos/27-minin.webp",
+  "./assets/photos/28-annunciation.webp",
+  "./assets/photos/34-kem-river.webp"
 ];
 
 self.addEventListener("install", event => {
