@@ -8,6 +8,7 @@
   const STORAGE_PROGRESS = "kem-route-progress-v1";
   const STORAGE_EDITS = "kem-route-edits-v1";
   const STORAGE_ROUTE_ISSUES = "kem-route-issues-v1";
+  const STORAGE_PHOTO_DRAFTS = "kem-route-photo-drafts-v1";
   const YANDEX_MAPS_API_KEY = "0eee433d-7b26-4439-94d2-6ee11f533686";
   const ROUTE_ISSUE_TYPES = {
     closed: "Проход закрыт",
@@ -24,6 +25,7 @@
     completed: new Set(readStorage(STORAGE_PROGRESS, [])),
     edits: readStorage(STORAGE_EDITS, []),
     routeIssues: readStorage(STORAGE_ROUTE_ISSUES, []),
+    photoDrafts: readStorage(STORAGE_PHOTO_DRAFTS, []),
     markers: new Map(),
     mapProvider: "yandex",
     map: null,
@@ -71,6 +73,12 @@
     photoStrip: document.querySelector("#photoStrip"),
     photoDialog: document.querySelector("#photoDialog"),
     photoDialogContent: document.querySelector("#photoDialogContent"),
+    photoUploadDialog: document.querySelector("#photoUploadDialog"),
+    photoUploadForm: document.querySelector("#photoUploadForm"),
+    photoPoint: document.querySelector("#photoPoint"),
+    photoFile: document.querySelector("#photoFile"),
+    photoUploadPreview: document.querySelector("#photoUploadPreview"),
+    savePhotoButton: document.querySelector("#savePhotoButton"),
     coordinateDialog: document.querySelector("#coordinateDialog"),
     coordinateForm: document.querySelector("#coordinateForm"),
     coordinateNewPointLabel: document.querySelector("#coordinateNewPointLabel"),
@@ -115,6 +123,29 @@
     return String(value ?? "").replace(/[&<>"']/g, character => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
     })[character]);
+  }
+
+  function allPhotos() {
+    return [...photos, ...state.photoDrafts];
+  }
+
+  function photoPointDetails(pointId) {
+    const guided = guidedPoints.find(point => point.id === pointId);
+    if (guided) return { id: guided.id, title: guided.title, number: guided.number, coordinates: guided.coordinates };
+    const planned = route.plannedPoints.find(point => point.id === pointId);
+    const draft = state.edits.find(edit => edit.field === "new-point" && edit.pointId === pointId);
+    if (draft) return { id: draft.pointId, title: draft.pointName, number: "+", coordinates: draft.coordinates };
+    if (planned) return { id: planned.id, title: planned.title, number: planned.number, coordinates: null };
+    return null;
+  }
+
+  function savePhotoDrafts() {
+    try {
+      localStorage.setItem(STORAGE_PHOTO_DRAFTS, JSON.stringify(state.photoDrafts));
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   function initMap() {
@@ -272,21 +303,7 @@
     });
 
     state.photoLayer = L.layerGroup();
-    photos.forEach(photo => {
-      const point = guidedPoints.find(item => item.id === photo.pointId);
-      if (!point) return;
-      const marker = L.marker(point.coordinates, {
-        icon: L.divIcon({
-          className: "",
-          html: `<div class="photo-map-marker" style="background-image:url('${photo.src}')"><span>${photo.pointNumber}</span></div>`,
-          iconSize: [54, 54],
-          iconAnchor: [27, 27],
-          popupAnchor: [0, -29]
-        })
-      });
-      marker.bindPopup(`<strong>${photo.title}</strong><br><small>${photo.date}</small><br><button class="popup-button" onclick="window.openKemPhoto('${photo.id}')">Открыть фотографию →</button>`);
-      marker.addTo(state.photoLayer);
-    });
+    renderPhotoLayer();
 
     state.routeIssueLayer = L.layerGroup().addTo(state.map);
     renderRouteIssues();
@@ -312,6 +329,26 @@
     state.map.on("click", event => {
       if (state.routeReviewMode) captureRouteIssue(event.latlng);
       else if (state.coordinateMode) captureCoordinate(event.latlng);
+    });
+  }
+
+  function renderPhotoLayer() {
+    if (!state.photoLayer || !window.L) return;
+    state.photoLayer.clearLayers();
+    allPhotos().forEach(photo => {
+      const point = photoPointDetails(photo.pointId);
+      if (!point?.coordinates) return;
+      const marker = L.marker(point.coordinates, {
+        icon: L.divIcon({
+          className: "",
+          html: `<div class="photo-map-marker${photo.isDraft ? " photo-map-marker--draft" : ""}" style="background-image:url('${photo.src}')"><span>${escapeHtml(photo.pointNumber)}</span></div>`,
+          iconSize: [54, 54],
+          iconAnchor: [27, 27],
+          popupAnchor: [0, -29]
+        })
+      });
+      marker.bindPopup(`<strong>${escapeHtml(photo.title)}</strong><br><small>${escapeHtml(photo.date || "Дата уточняется")}${photo.isDraft ? " · черновик" : ""}</small><br><button class="popup-button" onclick="window.openKemPhoto('${photo.id}')">Открыть фотографию →</button>`);
+      marker.addTo(state.photoLayer);
     });
   }
 
@@ -370,12 +407,12 @@
     });
 
     if (state.photosVisible) {
-      photos.forEach(photo => {
-        const point = guidedPoints.find(item => item.id === photo.pointId);
-        if (!point) return;
+      allPhotos().forEach(photo => {
+        const point = photoPointDetails(photo.pointId);
+        if (!point?.coordinates) return;
         addYandexMarker(
           point.coordinates,
-          `<div class="photo-map-marker" style="background-image:url('${photo.src}')"><span>${photo.pointNumber}</span></div>`,
+          `<div class="photo-map-marker${photo.isDraft ? " photo-map-marker--draft" : ""}" style="background-image:url('${photo.src}')"><span>${escapeHtml(photo.pointNumber)}</span></div>`,
           `Фотография: ${photo.title}`,
           () => openPhoto(photo.id),
           true
@@ -507,24 +544,102 @@
     const visible = state.planFilter === "all" ? route.plannedPoints : route.plannedPoints.filter(point => point.chapter === state.planFilter);
     els.planGrid.innerHTML = visible.map(point => {
       const isReady = point.status === "ready";
-      const photo = photos.find(item => item.pointId === point.id);
+      const photo = allPhotos().find(item => item.pointId === point.id);
       const action = isReady
         ? `<button class="plan-action" type="button" data-open-plan="${point.id}">Открыть карточку →</button>`
         : `<button class="plan-action" type="button" data-edit-point="${point.id}">Добавить материал →</button>`;
       const photoAction = photo ? `<button class="plan-action" type="button" data-photo-id="${photo.id}">▣ Есть фото</button>` : "";
-      return `<li class="plan-item ${isReady ? "plan-item--ready" : ""}"><span class="plan-item__number">${point.number}</span><div><h3>${point.title}</h3><div class="plan-item__meta"><span class="plan-status">${isReady ? "✓ карточка готова" : "○ исследуем"}</span>${photoAction}${action}</div></div></li>`;
+      const addPhotoAction = `<button class="plan-action" type="button" data-add-photo-point="${point.id}">＋ Фото</button>`;
+      return `<li class="plan-item ${isReady ? "plan-item--ready" : ""}"><span class="plan-item__number">${point.number}</span><div><h3>${point.title}</h3><div class="plan-item__meta"><span class="plan-status">${isReady ? "✓ карточка готова" : "○ исследуем"}</span>${photoAction}${addPhotoAction}${action}</div></div></li>`;
     }).join("");
   }
 
   function renderPhotos() {
-    els.photoStrip.innerHTML = photos.map(photo => `<button class="photo-card" type="button" data-photo-id="${photo.id}"><img src="${photo.src}" alt="" loading="lazy"><span class="photo-card__copy"><span>Точка ${photo.pointNumber}</span><strong>${photo.title}</strong><small>${photo.date}</small></span></button>`).join("");
+    els.photoStrip.innerHTML = allPhotos().map(photo => `<button class="photo-card${photo.isDraft ? " photo-card--draft" : ""}" type="button" data-photo-id="${photo.id}"><img src="${photo.src}" alt="" loading="lazy"><span class="photo-card__copy"><span>${photo.isDraft ? "Черновик" : `Точка ${escapeHtml(photo.pointNumber)}`}</span><strong>${escapeHtml(photo.title)}</strong><small>${escapeHtml(photo.date || "Дата уточняется")}</small></span></button>`).join("");
   }
 
   function openPhoto(photoId) {
-    const photo = photos.find(item => item.id === photoId);
+    const photo = allPhotos().find(item => item.id === photoId);
     if (!photo) return;
-    els.photoDialogContent.innerHTML = `<img class="photo-viewer__image" src="${photo.src}" alt="${photo.alt}"><div class="photo-viewer__copy"><p class="eyebrow">Фото · точка ${photo.pointNumber}</p><h2>${photo.title}</h2><p>${photo.caption}</p><div class="photo-meta"><div><strong>Дата</strong><span>${photo.date}</span></div><div><strong>Автор</strong><span>${photo.author}</span></div><div><strong>Источник</strong><span>${photo.source}</span></div><div><strong>Статус прав</strong><span>${photo.rightsStatus}</span></div></div><p><button class="text-button" type="button" data-edit-point="${photo.pointId}">Уточнить подпись или автора →</button></p></div>`;
+    const draftAction = photo.isDraft ? `<p><button class="text-button text-button--danger" type="button" data-delete-photo-draft="${photo.id}">Удалить этот черновик</button></p>` : `<p><button class="text-button" type="button" data-edit-point="${photo.pointId}">Уточнить подпись или автора →</button></p>`;
+    els.photoDialogContent.innerHTML = `<img class="photo-viewer__image" src="${photo.src}" alt="${escapeHtml(photo.alt || photo.title)}"><div class="photo-viewer__copy"><p class="eyebrow">${photo.isDraft ? "Черновик участника" : `Фото · точка ${escapeHtml(photo.pointNumber)}`}</p><h2>${escapeHtml(photo.title)}</h2><p>${escapeHtml(photo.caption)}</p><div class="photo-meta"><div><strong>Дата</strong><span>${escapeHtml(photo.date || "Не указана")}</span></div><div><strong>Автор</strong><span>${escapeHtml(photo.author)}</span></div><div><strong>Источник</strong><span>${escapeHtml(photo.source || "Личный материал")}</span></div><div><strong>Статус прав</strong><span>${escapeHtml(photo.rightsStatus)}</span></div></div>${draftAction}</div>`;
     els.photoDialog.showModal();
+  }
+
+  function photoPointOptions(selectedPointId = "") {
+    const plannedOptions = route.plannedPoints.map(point => ({ id: point.id, title: `${point.number}. ${point.title}` }));
+    const draftOptions = state.edits
+      .filter(edit => edit.field === "new-point")
+      .map(edit => ({ id: edit.pointId, title: `＋ ${edit.pointName} — новая точка` }));
+    els.photoPoint.innerHTML = `<option value="">Выберите точку</option>${[...plannedOptions, ...draftOptions].map(option => `<option value="${escapeHtml(option.id)}"${option.id === selectedPointId ? " selected" : ""}>${escapeHtml(option.title)}</option>`).join("")}`;
+  }
+
+  function openPhotoUpload(pointId = "") {
+    if (els.pointDialog.open) els.pointDialog.close();
+    if (els.photoDialog.open) els.photoDialog.close();
+    els.photoUploadForm.reset();
+    els.photoUploadPreview.hidden = true;
+    els.photoUploadPreview.querySelector("img").removeAttribute("src");
+    photoPointOptions(pointId);
+    els.photoUploadDialog.showModal();
+  }
+
+  function previewSelectedPhoto() {
+    const file = els.photoFile.files?.[0];
+    if (!file) {
+      els.photoUploadPreview.hidden = true;
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    const image = els.photoUploadPreview.querySelector("img");
+    image.onload = () => URL.revokeObjectURL(previewUrl);
+    image.src = previewUrl;
+    els.photoUploadPreview.hidden = false;
+  }
+
+  function loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      const url = URL.createObjectURL(file);
+      image.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(image);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Не удалось прочитать изображение"));
+      };
+      image.src = url;
+    });
+  }
+
+  async function optimizePhoto(file) {
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) throw new Error("Выберите фотографию JPG, PNG или WebP");
+    if (file.size > 15 * 1024 * 1024) throw new Error("Файл больше 15 МБ — выберите фотографию меньшего размера");
+    const image = await loadImage(file);
+    const maxSide = 1400;
+    const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio));
+    const context = canvas.getContext("2d", { alpha: false });
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", .76);
+    if (dataUrl.length > 1_200_000) throw new Error("После обработки снимок всё ещё слишком большой. Обрежьте его и попробуйте снова");
+    return dataUrl;
+  }
+
+  function deletePhotoDraft(photoId) {
+    state.photoDrafts = state.photoDrafts.filter(photo => photo.id !== photoId);
+    savePhotoDrafts();
+    renderPhotos();
+    renderPhotoLayer();
+    renderPlan();
+    renderYandexObjects();
+    if (els.photoDialog.open) els.photoDialog.close();
+    showToast("Черновик фотографии удалён");
   }
 
   function setCoordinateMode(enabled) {
@@ -716,6 +831,7 @@
       <h3>Важно</h3><p>${point.safety}</p>
       <details><summary>Координата и источники</summary><p class="muted">${point.coordinateNote}</p><ul class="source-list">${sourceList(point)}</ul></details>
       <div class="dialog-actions">
+        <button class="button button--ghost" type="button" data-add-photo-point="${point.id}">Добавить фото</button>
         <button class="button button--ghost" type="button" data-edit-point="${point.id}">Предложить правку</button>
         <button class="button button--primary" type="button" data-complete-point="${point.id}">${state.completed.has(point.id) ? "Отметить непройденной" : "Точка пройдена"}</button>
       </div>`;
@@ -785,7 +901,7 @@
   }
 
   function exportEdits() {
-    if (!state.edits.length && !state.routeIssues.length) {
+    if (!state.edits.length && !state.routeIssues.length && !state.photoDrafts.length) {
       showToast("Сохранённых предложений пока нет");
       return;
     }
@@ -794,7 +910,8 @@
       exportedAt: new Date().toISOString(),
       routeGeometryVersion: routeGeometry?.version || null,
       proposals: state.edits,
-      routeIssues: state.routeIssues
+      routeIssues: state.routeIssues,
+      photoDrafts: state.photoDrafts
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -809,6 +926,7 @@
   window.openKemPhoto = openPhoto;
   window.deleteKemRouteIssue = deleteRouteIssue;
   window.deleteKemCoordinateDraft = deleteCoordinateDraft;
+  window.deleteKemPhotoDraft = deletePhotoDraft;
 
   document.addEventListener("click", event => {
     const pointCard = event.target.closest("[data-point-id]");
@@ -819,6 +937,8 @@
     const planFilterButton = event.target.closest("[data-plan-filter]");
     const openPlanButton = event.target.closest("[data-open-plan]");
     const photoButton = event.target.closest("[data-photo-id]");
+    const addPhotoButton = event.target.closest("[data-add-photo-point]");
+    const deletePhotoButton = event.target.closest("[data-delete-photo-draft]");
     const mapProviderButton = event.target.closest("[data-map-provider]");
 
     if (pointCard) {
@@ -843,6 +963,8 @@
       document.querySelector(".workspace").scrollIntoView({ behavior: "smooth", block: "start" });
     }
     if (photoButton) openPhoto(photoButton.dataset.photoId);
+    if (addPhotoButton) openPhotoUpload(addPhotoButton.dataset.addPhotoPoint);
+    if (deletePhotoButton && window.confirm("Удалить этот черновик фотографии?")) deletePhotoDraft(deletePhotoButton.dataset.deletePhotoDraft);
     if (mapProviderButton) setMapProvider(mapProviderButton.dataset.mapProvider);
   });
 
@@ -871,6 +993,8 @@
   });
   document.querySelectorAll(".segmented__button").forEach(button => button.addEventListener("click", () => button.dataset.view === "guide" ? enterGuide(state.currentPointIndex) : exitGuide()));
   document.querySelector("#aboutButton").addEventListener("click", () => document.querySelector("#aboutDialog").showModal());
+  document.querySelector("#addPhotoButton").addEventListener("click", () => openPhotoUpload());
+  els.photoFile.addEventListener("change", previewSelectedPhoto);
   document.querySelector("#photosButton").addEventListener("click", () => {
     state.photosVisible = !state.photosVisible;
     if (state.map && state.photoLayer) {
@@ -918,6 +1042,58 @@
     saveProgress();
     renderPoints();
     showToast("Прогресс маршрута сброшен");
+  });
+
+  els.photoUploadForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const formData = new FormData(els.photoUploadForm);
+    const file = els.photoFile.files?.[0];
+    const point = photoPointDetails(formData.get("pointId"));
+    if (!file || !point) {
+      showToast("Выберите точку и фотографию");
+      return;
+    }
+    els.savePhotoButton.disabled = true;
+    els.savePhotoButton.textContent = "Обрабатываем…";
+    try {
+      const src = await optimizePhoto(file);
+      const draft = {
+        id: crypto.randomUUID ? `draft-photo-${crypto.randomUUID()}` : `draft-photo-${Date.now()}`,
+        pointId: point.id,
+        pointNumber: point.number,
+        title: String(formData.get("title") || "").trim(),
+        src,
+        alt: String(formData.get("title") || "").trim(),
+        date: String(formData.get("date") || "Дата уточняется").trim(),
+        caption: String(formData.get("caption") || "").trim(),
+        author: String(formData.get("author") || "").trim(),
+        source: String(formData.get("source") || "Личный материал участника").trim(),
+        rightsStatus: "Участник подтвердил авторство или разрешение; требуется проверка редактора",
+        originalFileName: file.name,
+        createdAt: new Date().toISOString(),
+        status: "field-draft",
+        isDraft: true
+      };
+      state.photoDrafts.push(draft);
+      if (!savePhotoDrafts()) {
+        state.photoDrafts.pop();
+        throw new Error("На устройстве не хватает места. Сначала выгрузите и удалите старые черновики");
+      }
+      renderPhotos();
+      renderPhotoLayer();
+      renderPlan();
+      renderYandexObjects();
+      els.photoUploadDialog.close();
+      els.photoUploadForm.reset();
+      els.photoUploadPreview.hidden = true;
+      document.querySelector("#photoStories").scrollIntoView({ behavior: "smooth", block: "start" });
+      showToast("Фотография сохранена как черновик участника");
+    } catch (error) {
+      showToast(error.message || "Не удалось сохранить фотографию");
+    } finally {
+      els.savePhotoButton.disabled = false;
+      els.savePhotoButton.textContent = "Сохранить черновик";
+    }
   });
 
   els.editForm.addEventListener("submit", event => {
