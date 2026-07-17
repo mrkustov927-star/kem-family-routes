@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" role="img" aria-labelledby="title desc">
+  <title id="title">Бывший Дом офицеров</title><desc id="desc">Городской дом, звезда и силуэт самолёта</desc>
+  <rect width="900" height="650" fill="#f6f3ec"/><circle cx="736" cy="120" r="88" fill="#e21f26"/>
+  <path d="M0 415 148 344l162 54 196-95 190 73 204-55v329H0Z" fill="#bed5c1"/>
+  <path d="M128 280h520v294H128Z" fill="#f1c58e" stroke="#102a43" stroke-width="10"/><path d="M90 285 387 132l300 153Z" fill="#102a43"/>
+  <path d="M318 188h140v98H318Z" fill="#e21f26"/><path d="m388 205 11 31 33 1-26 20 9 32-27-18-27 18 9-32-26-20 33-1Z" fill="#fff"/>
+  <g fill="#1769aa" stroke="#102a43" stroke-width="7"><path d="M184 339h76v74h-76zM308 339h76v74h-76zM432 339h76v74h-76zM556 339h46v74h-46z"/><path d="M330 459h116v115H330z"/></g>
+  <path d="m596 105 117 31 102-17-83 39 52 42-86-27-52 38 19-53Z" fill="#102a43"/>
+  <text x="48" y="68" fill="#102a43" font-family="Arial" font-size="32" font-weight="700">ТОЧКА 03</text><text x="48" y="112" fill="#e21f26" font-family="Arial" font-size="44" font-weight="900">ВОЕННЫЙ ГОРОДОК</text>
+</svg>

@@ -1,0 +1,19 @@
+{
+  "name": "Семейные маршруты по Кеми с Первыми",
+  "short_name": "Маршруты Кеми",
+  "description": "Интерактивный помощник юного экскурсовода",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f3ec",
+  "theme_color": "#e21f26",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

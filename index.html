@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#e21f26">
+  <meta name="description" content="Интерактивный помощник юного экскурсовода по Кеми">
+  <title>Семейные маршруты по Кеми с Первыми</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://tile.openstreetmap.org">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3ynh3ZB2bKQ5K/6A3Mq0CjoYdMrT4=" crossorigin="">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Перейти к маршруту</a>
+
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="На главную">
+      <span class="brand__mark" aria-hidden="true">1</span>
+      <span>
+        <strong>Семейные маршруты</strong>
+        <small>по Кеми с Первыми</small>
+      </span>
+    </a>
+    <button class="icon-button" id="aboutButton" type="button" aria-label="О проекте">?</button>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="hero__content">
+        <p class="eyebrow">Маршрут-помощник · тестовая версия</p>
+        <h1>Город говорит.<br><span>Мы помогаем услышать.</span></h1>
+        <p class="hero__lead">Карта, короткие подсказки и вопросы для семейной экскурсии по Кеми.</p>
+        <div class="hero__actions">
+          <button class="button button--primary" id="startTourButton" type="button">Начать маршрут</button>
+          <button class="button button--ghost" id="showListButton" type="button">Все точки</button>
+        </div>
+      </div>
+      <div class="hero__art" aria-hidden="true">
+        <span class="hero__sun"></span>
+        <span class="hero__river"></span>
+        <span class="hero__church">✦</span>
+      </div>
+    </section>
+
+    <section class="workspace" aria-label="Интерактивный маршрут">
+      <div class="workspace__toolbar">
+        <div class="segmented" role="group" aria-label="Режим просмотра">
+          <button class="segmented__button is-active" data-view="map" type="button">Карта</button>
+          <button class="segmented__button" data-view="guide" type="button">Провожу экскурсию</button>
+        </div>
+        <div class="route-progress" aria-live="polite">
+          <span id="progressText">0 из 5 точек</span>
+          <span class="route-progress__track"><span id="progressBar"></span></span>
+        </div>
+      </div>
+
+      <div class="workspace__body">
+        <div class="map-panel">
+          <div id="map" aria-label="Карта маршрута по Кеми"></div>
+          <div class="map-legend">
+            <span><i class="dot dot--ready"></i> координата проверена</span>
+            <span><i class="dot dot--check"></i> нужна полевая проверка</span>
+          </div>
+          <button class="map-list-toggle" id="mapListToggle" type="button">Показать список</button>
+        </div>
+
+        <aside class="points-panel" id="pointsPanel" aria-label="Точки маршрута">
+          <div class="points-panel__heading">
+            <div>
+              <p class="eyebrow">Тестовый фрагмент</p>
+              <h2>5 точек маршрута</h2>
+            </div>
+            <button class="icon-button points-panel__close" id="closeListButton" type="button" aria-label="Закрыть список">×</button>
+          </div>
+          <div class="chapter-filter" id="chapterFilter" aria-label="Фильтр по главам"></div>
+          <ol class="points-list" id="pointsList"></ol>
+        </aside>
+
+        <section class="guide-panel" id="guidePanel" aria-label="Режим экскурсовода" hidden>
+          <div class="guide-panel__top">
+            <button class="text-button" id="exitGuideButton" type="button">← К карте</button>
+            <span class="guide-step" id="guideStep">Точка 1 из 5</span>
+          </div>
+          <article id="guideContent"></article>
+          <div class="guide-panel__actions">
+            <button class="button button--ghost" id="previousPointButton" type="button">Назад</button>
+            <button class="button button--primary" id="nextPointButton" type="button">Следующая точка</button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="principles" aria-label="Возможности проекта">
+      <article><span>01</span><h3>Под рукой</h3><p>Короткий текст, который удобно читать с телефона на маршруте.</p></article>
+      <article><span>02</span><h3>Живая история</h3><p>Вопросы семье, места показа и бережные подсказки юному гиду.</p></article>
+      <article><span>03</span><h3>Общее дело</h3><p>Ребята предлагают правки, а редактор проверяет факты перед публикацией.</p></article>
+    </section>
+  </main>
+
+  <dialog class="point-dialog" id="pointDialog">
+    <form method="dialog" class="dialog-shell">
+      <button class="dialog-close" value="close" aria-label="Закрыть">×</button>
+      <div id="pointDialogContent"></div>
+    </form>
+  </dialog>
+
+  <dialog class="edit-dialog" id="editDialog">
+    <form class="dialog-shell edit-form" id="editForm">
+      <button class="dialog-close" type="button" data-close-dialog="editDialog" aria-label="Закрыть">×</button>
+      <p class="eyebrow">Редакторская мастерская</p>
+      <h2>Предложить правку</h2>
+      <p class="muted">Черновик сохранится на этом устройстве. Его можно выгрузить и передать редактору маршрута.</p>
+      <input type="hidden" id="editPointId" name="pointId">
+      <label>Точка маршрута<input id="editPointName" name="pointName" readonly></label>
+      <label>Что предлагаете изменить?<select id="editField" name="field" required><option value="">Выберите</option><option value="fact">Факт</option><option value="guide">Текст экскурсовода</option><option value="show">Место показа</option><option value="photo">Фотография</option><option value="coordinate">Координата</option><option value="other">Другое</option></select></label>
+      <label>Новый текст<textarea id="editText" name="text" rows="6" required placeholder="Напишите точную формулировку"></textarea></label>
+      <label>Источник или пояснение<textarea id="editSource" name="source" rows="3" placeholder="Ссылка, книга, архив, рассказ краеведа…"></textarea></label>
+      <label>Ваше имя<input id="editAuthor" name="author" autocomplete="name" placeholder="Необязательно"></label>
+      <div class="dialog-actions"><button class="button button--ghost" type="button" data-close-dialog="editDialog">Отмена</button><button class="button button--primary" type="submit">Сохранить черновик</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="about-dialog" id="aboutDialog">
+    <form method="dialog" class="dialog-shell">
+      <button class="dialog-close" value="close" aria-label="Закрыть">×</button>
+      <p class="eyebrow">О проекте</p>
+      <h2>Историю города собираем вместе</h2>
+      <p>Это прототип помощника для юных экскурсоводов. Сейчас в нём пять тестовых точек. Координаты с жёлтой меткой нужно проверить на месте.</p>
+      <p>Архивные фотографии будут опубликованы после проверки подписей и прав использования.</p>
+      <button class="button button--primary" value="close">Понятно</button>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <footer>
+    <div><strong>Семейные маршруты по Кеми с Первыми</strong><p>Учебный краеведческий проект · 2026</p></div>
+    <div class="footer-actions"><button class="text-button" id="exportButton" type="button">Выгрузить правки</button><button class="text-button" id="resetProgressButton" type="button">Сбросить прогресс</button></div>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="./points.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

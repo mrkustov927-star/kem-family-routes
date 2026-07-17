@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" role="img" aria-labelledby="title desc">
+  <title id="title">Вокзал Кеми</title><desc id="desc">Стилизованная иллюстрация вокзала, железной дороги и северного неба</desc>
+  <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#dff4ff"/><stop offset="1" stop-color="#fff"/></linearGradient><linearGradient id="rail" x2="0" y2="1"><stop stop-color="#5b6f7c"/><stop offset="1" stop-color="#102a43"/></linearGradient></defs>
+  <rect width="900" height="650" fill="url(#sky)"/><circle cx="725" cy="128" r="82" fill="#e21f26"/>
+  <path d="M0 390 164 315l182 64 204-113 350 142v242H0Z" fill="#c7d8cb"/><path d="M0 452h900v198H0Z" fill="#687b63"/>
+  <g fill="#fff" stroke="#102a43" stroke-width="10"><path d="M132 360h430v194H132Z"/><path d="m100 367 246-141 247 141Z"/><path d="M585 362h166v192H585Z"/><path d="m568 368 99-88 102 88Z"/></g>
+  <g fill="#1769aa"><path d="M190 400h66v63h-66zM302 400h66v63h-66zM414 400h66v63h-66z"/><path d="M635 405h69v149h-69z"/></g>
+  <path d="M0 570h900" stroke="#102a43" stroke-width="18"/><path d="m34 650 190-80M286 650l190-80M538 650l190-80M790 650l110-46" stroke="#f6f3ec" stroke-width="12"/>
+  <path d="M685 168v125M657 202h57" stroke="#102a43" stroke-width="8"/><text x="55" y="92" fill="#102a43" font-family="Arial" font-size="34" font-weight="700">ТОЧКА 01</text><text x="55" y="139" fill="#e21f26" font-family="Arial" font-size="56" font-weight="900">ВОКЗАЛ</text>
+</svg>

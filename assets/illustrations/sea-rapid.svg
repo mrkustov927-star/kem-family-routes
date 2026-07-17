@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" role="img" aria-labelledby="title desc">
+  <title id="title">Морской порог</title><desc id="desc">Северная река, порог и памятный знак</desc>
+  <defs><linearGradient id="sky2" x2="0" y2="1"><stop stop-color="#dff4ff"/><stop offset="1" stop-color="#91d0e3"/></linearGradient></defs>
+  <rect width="900" height="650" fill="url(#sky2)"/><circle cx="725" cy="112" r="72" fill="#f4b740"/>
+  <path d="M0 329c159-96 293-88 438-11 165 88 295 68 462-33v161H0Z" fill="#487554"/>
+  <path d="M0 425c196-67 343 53 523 4 159-43 241-40 377 0v221H0Z" fill="#1769aa"/>
+  <g fill="none" stroke="#fff" stroke-width="11" opacity=".85"><path d="M-20 492c175-74 316 63 499 3 146-48 262-39 443 6"/><path d="M-20 565c175-74 316 63 499 3 146-48 262-39 443 6"/><path d="M112 621c73-38 126-34 194 0"/></g>
+  <path d="M585 219h118l25 279H558Z" fill="#d5d8d9" stroke="#102a43" stroke-width="9"/><path d="M553 182h180v52H553Z" fill="#102a43"/><path d="M622 113h42v70h-42Z" fill="#e21f26"/><path d="m643 88 15 21 25 7-16 20 1 26-25-9-25 9 1-26-16-20 25-7Z" fill="#e21f26"/>
+  <text x="54" y="70" fill="#102a43" font-family="Arial" font-size="32" font-weight="700">ТОЧКА 05</text><text x="54" y="116" fill="#e21f26" font-family="Arial" font-size="51" font-weight="900">МОРСКОЙ ПОРОГ</text>
+</svg>
