@@ -74,6 +74,7 @@
             <span><i class="dot dot--ready"></i> координата проверена</span>
             <span><i class="dot dot--check"></i> нужна полевая проверка</span>
             <span><i class="dot dot--photo"></i> фотография точки</span>
+            <span><i class="dot dot--draft"></i> черновик новой точки</span>
             <span><i class="dot dot--issue"></i> <span id="routeIssueCount">замечаний: 0</span></span>
           </div>
           <button class="map-list-toggle" id="mapListToggle" type="button">Показать список</button>
@@ -181,9 +182,10 @@
     <form class="dialog-shell edit-form" id="coordinateForm">
       <button class="dialog-close" type="button" data-close-dialog="coordinateDialog" aria-label="Закрыть">×</button>
       <p class="eyebrow">Полевая работа</p>
-      <h2>Зафиксировать координату</h2>
-      <p class="muted">Выберите объект и проверьте, что метка стоит в месте, где группа будет останавливаться.</p>
+      <h2>Поставить точку</h2>
+      <p class="muted">Можно уточнить координату существующего объекта или создать новую экскурсионную точку.</p>
       <label>Точка маршрута<select id="coordinatePoint" name="pointId" required></select></label>
+      <label id="coordinateNewPointLabel" hidden>Название новой точки<input id="coordinateNewPointName" name="newPointName" placeholder="Например: старый железнодорожный мост"></label>
       <div class="coordinate-fields">
         <label>Широта<input id="coordinateLat" name="lat" inputmode="decimal" readonly></label>
         <label>Долгота<input id="coordinateLng" name="lng" inputmode="decimal" readonly></label>
