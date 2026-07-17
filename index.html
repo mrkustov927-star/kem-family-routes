@@ -69,6 +69,7 @@
           <div id="map" aria-label="Карта маршрута по Кеми"></div>
           <div class="map-loading" aria-hidden="true"><span></span> Загружаем карту…</div>
           <div class="map-legend">
+            <span class="route-summary"><i class="route-line-swatch"></i><strong id="routeDistance">маршрут</strong><span aria-hidden="true">·</span><span id="routeWalkingTime">по улицам</span><em>черновик</em></span>
             <span><i class="dot dot--ready"></i> координата проверена</span>
             <span><i class="dot dot--check"></i> нужна полевая проверка</span>
             <span><i class="dot dot--photo"></i> фотография точки</span>
@@ -161,7 +162,7 @@
       <button class="dialog-close" value="close" aria-label="Закрыть">×</button>
       <p class="eyebrow">О проекте</p>
       <h2>Историю города собираем вместе</h2>
-      <p>Это прототип помощника для юных экскурсоводов. Подготовленные точки пополняются по мере проверки фактов, координат и мест показа. Координаты с жёлтой меткой нужно проверить на месте.</p>
+      <p>Это прототип помощника для юных экскурсоводов. Подготовленные точки пополняются по мере проверки фактов, координат и мест показа. Красная линия построена по пешеходной сети OpenStreetMap; переходы и безопасность маршрута нужно проверить на месте.</p>
       <p>Фотографии с пометкой «автор уточняется» остаются редакционным материалом: перед окончательной публикацией нужно подтвердить подписи и права использования.</p>
       <button class="button button--primary" value="close">Понятно</button>
     </form>
@@ -201,6 +202,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="./points.js"></script>
   <script src="./photos.js"></script>
+  <script src="./route-geometry.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

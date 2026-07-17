@@ -78,6 +78,9 @@ h1 span { color: var(--red); }
 .map-panel.is-map-loading .map-loading { opacity: 1; transform: translate(-50%, 0); }
 @keyframes map-spin { to { transform: rotate(360deg); } }
 .map-legend { position: absolute; z-index: 450; left: 18px; bottom: 18px; display: flex; flex-wrap: wrap; gap: 10px 16px; max-width: calc(100% - 36px); padding: 10px 13px; border-radius: 13px; background: rgba(255,255,255,.94); box-shadow: 0 7px 20px rgba(16,42,67,.16); font-size: 12px; }
+.route-summary { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; color: var(--navy); }
+.route-summary em { margin-left: 2px; padding: 2px 6px; border-radius: 20px; background: #fff0c9; color: #694c00; font-size: 10px; font-style: normal; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.route-line-swatch { width: 28px; height: 5px; margin-right: 2px; border-radius: 10px; background: var(--red); box-shadow: 0 0 0 2px white, 0 0 0 3px rgba(16,42,67,.14); }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
 .dot--ready { background: var(--red); }
 .dot--check { background: var(--yellow); }

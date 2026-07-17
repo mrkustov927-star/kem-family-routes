@@ -3,6 +3,7 @@
 
   const route = window.KEM_ROUTE;
   const photos = window.KEM_PHOTOS || [];
+  const routeGeometry = window.KEM_ROUTE_GEOMETRY || null;
   const guidedPoints = [...route.points].sort((a, b) => a.number - b.number);
   const STORAGE_PROGRESS = "kem-route-progress-v1";
   const STORAGE_EDITS = "kem-route-edits-v1";
@@ -19,7 +20,8 @@
     coordinateMode: false,
     coordinateMarker: null,
     userMarker: null,
-    accuracyCircle: null
+    accuracyCircle: null,
+    routeCoordinates: []
   };
 
   const els = {
@@ -46,6 +48,8 @@
     photoDialogContent: document.querySelector("#photoDialogContent"),
     coordinateDialog: document.querySelector("#coordinateDialog"),
     coordinateForm: document.querySelector("#coordinateForm"),
+    routeDistance: document.querySelector("#routeDistance"),
+    routeWalkingTime: document.querySelector("#routeWalkingTime"),
     toast: document.querySelector("#toast")
   };
 
@@ -137,8 +141,18 @@
     });
 
     state.routeLayer = L.layerGroup().addTo(state.map);
-    const routeLine = guidedPoints.map(point => point.coordinates);
-    L.polyline(routeLine, { color: "#e21f26", weight: 4, opacity: .82, dashArray: "9 9" }).addTo(state.routeLayer);
+    const routeLine = routeGeometry?.coordinates?.length
+      ? routeGeometry.coordinates
+      : guidedPoints.map(point => point.coordinates);
+    state.routeCoordinates = routeLine;
+    L.polyline(routeLine, { color: "#fff", weight: 9, opacity: .92, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
+    L.polyline(routeLine, { color: "#e21f26", weight: 5, opacity: .94, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
+
+    if (routeGeometry) {
+      const distanceKm = routeGeometry.distanceMeters / 1000;
+      els.routeDistance.textContent = `${distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км`;
+      els.routeWalkingTime.textContent = `≈ ${routeGeometry.estimatedWalkingMinutes} мин пешком`;
+    }
 
     guidedPoints.forEach(point => {
       const needsCheck = point.coordinateStatus === "needs-check";
@@ -197,7 +211,8 @@
 
   function fitWholeRoute() {
     if (!state.map) return;
-    state.map.fitBounds(L.latLngBounds(guidedPoints.map(point => point.coordinates)), { padding: [55, 55] });
+    const routeLine = state.routeCoordinates.length ? state.routeCoordinates : guidedPoints.map(point => point.coordinates);
+    state.map.fitBounds(L.latLngBounds(routeLine), { padding: [55, 55] });
   }
 
   async function toggleMapFullscreen() {
