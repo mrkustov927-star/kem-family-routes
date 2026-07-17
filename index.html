@@ -60,6 +60,10 @@
       <div class="workspace__body">
         <div class="map-panel">
           <div class="map-actions" aria-label="Инструменты карты">
+            <div class="map-provider-switch" role="group" aria-label="Картографическая подложка">
+              <button class="map-provider-button is-active" type="button" data-map-provider="yandex" aria-pressed="true">Яндекс</button>
+              <button class="map-provider-button" type="button" data-map-provider="osm" aria-pressed="false">OSM</button>
+            </div>
             <button class="map-action" id="locateButton" type="button"><span aria-hidden="true">◎</span> Я здесь</button>
             <button class="map-action" id="fitRouteButton" type="button"><span aria-hidden="true">⌖</span> Весь маршрут</button>
             <button class="map-action" id="coordinateModeButton" type="button" aria-pressed="false"><span aria-hidden="true">＋</span> Поставить точку</button>
@@ -67,7 +71,10 @@
             <button class="map-action" id="photosButton" type="button" aria-pressed="false"><span aria-hidden="true">▣</span> Фотографии</button>
             <button class="map-action" id="fullscreenMapButton" type="button"><span aria-hidden="true">⛶</span> На весь экран</button>
           </div>
-          <div id="map" aria-label="Карта маршрута по Кеми"></div>
+          <div class="map-stack">
+            <div id="yandexMap" class="map-canvas" aria-label="Яндекс Карта с маршрутом экскурсии по Кеми"></div>
+            <div id="map" class="map-canvas" aria-label="Резервная карта OpenStreetMap с маршрутом экскурсии по Кеми" hidden></div>
+          </div>
           <div class="map-loading" aria-hidden="true"><span></span> Загружаем карту…</div>
           <div class="map-legend">
             <span class="route-summary"><i class="route-line-swatch"></i><strong id="routeDistance">маршрут</strong><span aria-hidden="true">·</span><span id="routeWalkingTime">по улицам</span><em>черновик</em></span>

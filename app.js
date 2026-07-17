@@ -8,6 +8,7 @@
   const STORAGE_PROGRESS = "kem-route-progress-v1";
   const STORAGE_EDITS = "kem-route-edits-v1";
   const STORAGE_ROUTE_ISSUES = "kem-route-issues-v1";
+  const YANDEX_MAPS_API_KEY = "7993e7ec-a005-44a1-bff9-d9d7df0eb41a";
   const ROUTE_ISSUE_TYPES = {
     closed: "Проход закрыт",
     crossing: "Опасный переход",
@@ -24,6 +25,7 @@
     edits: readStorage(STORAGE_EDITS, []),
     routeIssues: readStorage(STORAGE_ROUTE_ISSUES, []),
     markers: new Map(),
+    mapProvider: "yandex",
     map: null,
     routeLayer: null,
     photoLayer: null,
@@ -34,11 +36,20 @@
     coordinateMarker: null,
     userMarker: null,
     accuracyCircle: null,
-    routeCoordinates: []
+    routeCoordinates: [],
+    photosVisible: false,
+    coordinatePreview: null,
+    userLocation: null,
+    userAccuracy: 0,
+    yandexMap: null,
+    yandexClasses: null,
+    yandexObjects: [],
+    yandexReady: false
   };
 
   const els = {
     map: document.querySelector("#map"),
+    yandexMap: document.querySelector("#yandexMap"),
     mapPanel: document.querySelector(".map-panel"),
     pointsList: document.querySelector("#pointsList"),
     pointsPanel: document.querySelector("#pointsPanel"),
@@ -106,6 +117,72 @@
   }
 
   function initMap() {
+    const routeLine = routeGeometry?.coordinates?.length
+      ? routeGeometry.coordinates
+      : guidedPoints.map(point => point.coordinates);
+    state.routeCoordinates = routeLine;
+
+    if (routeGeometry) {
+      const distanceKm = routeGeometry.distanceMeters / 1000;
+      els.routeDistance.textContent = `${distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км`;
+      els.routeWalkingTime.textContent = `≈ ${routeGeometry.estimatedWalkingMinutes} мин пешком`;
+    }
+
+    initLeafletMap();
+    setMapProvider("yandex");
+    initYandexMap().catch(error => {
+      console.error("Yandex Maps failed to initialize", error);
+      setMapProvider("osm");
+      showToast("Яндекс Карта недоступна — включена резервная карта");
+    });
+  }
+
+  function loadYandexApi() {
+    if (window.ymaps3) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      const timer = window.setTimeout(() => reject(new Error("Yandex Maps loading timeout")), 12000);
+      script.src = `https://api-maps.yandex.ru/v3/?apikey=${encodeURIComponent(YANDEX_MAPS_API_KEY)}&lang=ru_RU`;
+      script.async = true;
+      script.onload = () => {
+        window.clearTimeout(timer);
+        resolve();
+      };
+      script.onerror = () => {
+        window.clearTimeout(timer);
+        reject(new Error("Yandex Maps script failed to load"));
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  async function initYandexMap() {
+    els.mapPanel.classList.add("is-map-loading");
+    await loadYandexApi();
+    await window.ymaps3.ready;
+    const { YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer, YMapFeature, YMapMarker, YMapListener } = window.ymaps3;
+    state.yandexClasses = { YMapFeature, YMapMarker };
+    state.yandexMap = new YMap(els.yandexMap, {
+      location: { center: [34.594, 64.953], zoom: 14 },
+      showScaleInCopyrights: true
+    }, [
+      new YMapDefaultSchemeLayer({}),
+      new YMapDefaultFeaturesLayer({})
+    ]);
+    state.yandexMap.addChild(new YMapListener({
+      onClick: (_object, event) => {
+        const latlng = { lat: event.coordinates[1], lng: event.coordinates[0] };
+        if (state.routeReviewMode) captureRouteIssue(latlng);
+        else if (state.coordinateMode) captureCoordinate(latlng);
+      }
+    }));
+    state.yandexReady = true;
+    renderYandexObjects();
+    els.mapPanel.classList.remove("is-map-loading");
+    if (state.mapProvider === "yandex") fitYandexRoute();
+  }
+
+  function initLeafletMap() {
     if (!window.L) {
       els.map.innerHTML = '<div style="padding:32px">Карта не загрузилась. Проверьте подключение к интернету.</div>';
       return;
@@ -149,8 +226,8 @@
     });
 
     [streetMap, quietMap, osmMap].forEach(layer => {
-      layer.on("loading", () => els.mapPanel.classList.add("is-map-loading"));
-      layer.on("load", () => els.mapPanel.classList.remove("is-map-loading"));
+      layer.on("loading", () => state.mapProvider === "osm" && els.mapPanel.classList.add("is-map-loading"));
+      layer.on("load", () => state.mapProvider === "osm" && els.mapPanel.classList.remove("is-map-loading"));
       layer.on("tileerror", event => {
         const tile = event.tile;
         if (!tile || tile.dataset.retryAttempted === "true") return;
@@ -165,18 +242,9 @@
     });
 
     state.routeLayer = L.layerGroup().addTo(state.map);
-    const routeLine = routeGeometry?.coordinates?.length
-      ? routeGeometry.coordinates
-      : guidedPoints.map(point => point.coordinates);
-    state.routeCoordinates = routeLine;
+    const routeLine = state.routeCoordinates;
     L.polyline(routeLine, { color: "#fff", weight: 9, opacity: .92, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
     L.polyline(routeLine, { color: "#e21f26", weight: 5, opacity: .94, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
-
-    if (routeGeometry) {
-      const distanceKm = routeGeometry.distanceMeters / 1000;
-      els.routeDistance.textContent = `${distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км`;
-      els.routeWalkingTime.textContent = `≈ ${routeGeometry.estimatedWalkingMinutes} мин пешком`;
-    }
 
     guidedPoints.forEach(point => {
       const needsCheck = point.coordinateStatus === "needs-check";
@@ -228,18 +296,170 @@
     state.map.on("overlayadd overlayremove", event => {
       if (event.layer !== state.photoLayer) return;
       const visible = state.map.hasLayer(state.photoLayer);
+      state.photosVisible = visible;
       document.querySelector("#photosButton").classList.toggle("is-active", visible);
       document.querySelector("#photosButton").setAttribute("aria-pressed", String(visible));
+      renderYandexObjects();
     });
     state.map.on("click", event => {
       if (state.routeReviewMode) captureRouteIssue(event.latlng);
       else if (state.coordinateMode) captureCoordinate(event.latlng);
     });
-    state.map.on("locationfound", showUserLocation);
-    state.map.on("locationerror", () => showToast("Не удалось определить местоположение. Проверьте разрешение геолокации."));
+  }
+
+  function toYandexCoordinates(coordinates) {
+    return [coordinates[1], coordinates[0]];
+  }
+
+  function clearYandexObjects() {
+    if (!state.yandexMap) return;
+    state.yandexObjects.forEach(object => state.yandexMap.removeChild(object));
+    state.yandexObjects = [];
+  }
+
+  function addYandexObject(object) {
+    state.yandexMap.addChild(object);
+    state.yandexObjects.push(object);
+  }
+
+  function addYandexMarker(coordinates, html, label, onClick, centered = false) {
+    const host = document.createElement("button");
+    host.type = "button";
+    host.className = `yandex-marker-host${centered ? " yandex-marker-host--center" : ""}`;
+    host.setAttribute("aria-label", label);
+    host.title = label;
+    host.innerHTML = html;
+    host.addEventListener("click", event => {
+      event.stopPropagation();
+      onClick?.();
+    });
+    addYandexObject(new state.yandexClasses.YMapMarker({ coordinates: toYandexCoordinates(coordinates) }, host));
+  }
+
+  function renderYandexObjects() {
+    if (!state.yandexReady || !state.yandexMap || !state.yandexClasses) return;
+    clearYandexObjects();
+    const routeLine = state.routeCoordinates.map(toYandexCoordinates);
+    addYandexObject(new state.yandexClasses.YMapFeature({
+      id: "kem-route-outline",
+      geometry: { type: "LineString", coordinates: routeLine },
+      style: { stroke: [{ color: "#ffffff", width: 9, opacity: .92 }] }
+    }));
+    addYandexObject(new state.yandexClasses.YMapFeature({
+      id: "kem-route-line",
+      geometry: { type: "LineString", coordinates: routeLine },
+      style: { stroke: [{ color: "#e21f26", width: 5, opacity: .94 }] }
+    }));
+
+    guidedPoints.forEach(point => {
+      const needsCheck = point.coordinateStatus === "needs-check";
+      addYandexMarker(
+        point.coordinates,
+        `<div class="map-marker ${needsCheck ? "map-marker--check" : ""}"><span>${point.number}</span></div>`,
+        `${point.number}. ${point.shortTitle}`,
+        () => openPoint(point.id)
+      );
+    });
+
+    if (state.photosVisible) {
+      photos.forEach(photo => {
+        const point = guidedPoints.find(item => item.id === photo.pointId);
+        if (!point) return;
+        addYandexMarker(
+          point.coordinates,
+          `<div class="photo-map-marker" style="background-image:url('${photo.src}')"><span>${photo.pointNumber}</span></div>`,
+          `Фотография: ${photo.title}`,
+          () => openPhoto(photo.id),
+          true
+        );
+      });
+    }
+
+    state.routeIssues.forEach(issue => {
+      if (!Array.isArray(issue.coordinates) || issue.coordinates.length !== 2) return;
+      const typeLabel = ROUTE_ISSUE_TYPES[issue.type] || ROUTE_ISSUE_TYPES.other;
+      addYandexMarker(
+        issue.coordinates,
+        '<div class="route-issue-marker"><span>!</span></div>',
+        `${typeLabel}: ${issue.detail || "без комментария"}`,
+        () => {
+          if (window.confirm(`${typeLabel}\n${issue.detail || "Без комментария"}\n\nУдалить замечание?`)) deleteRouteIssue(issue.id);
+        }
+      );
+    });
+
+    state.edits.filter(edit => ["coordinate", "new-point"].includes(edit.field) && Array.isArray(edit.coordinates)).forEach(edit => {
+      const isNewPoint = edit.field === "new-point";
+      addYandexMarker(
+        edit.coordinates,
+        `<div class="coordinate-draft-marker ${isNewPoint ? "coordinate-draft-marker--new" : ""}"><span>${isNewPoint ? "+" : "✓"}</span></div>`,
+        `${edit.pointName}: ${isNewPoint ? "новая точка" : "уточнение координаты"}`,
+        () => {
+          if (window.confirm(`Удалить черновик «${edit.pointName}»?`)) deleteCoordinateDraft(edit.id);
+        }
+      );
+    });
+
+    if (state.coordinatePreview) {
+      addYandexMarker(state.coordinatePreview, '<div class="coordinate-marker">＋</div>', "Выбранная координата", null, true);
+    }
+    if (state.userLocation) {
+      addYandexMarker(state.userLocation, '<div class="user-marker"></div>', "Вы находитесь здесь", null, true);
+    }
+  }
+
+  function fitYandexRoute() {
+    if (!state.yandexReady || !state.yandexMap || !state.routeCoordinates.length) return;
+    const longitudes = state.routeCoordinates.map(coordinates => coordinates[1]);
+    const latitudes = state.routeCoordinates.map(coordinates => coordinates[0]);
+    state.yandexMap.update({
+      location: {
+        bounds: [
+          [Math.min(...longitudes), Math.min(...latitudes)],
+          [Math.max(...longitudes), Math.max(...latitudes)]
+        ],
+        duration: 500
+      }
+    });
+  }
+
+  function setMapProvider(provider) {
+    const requested = provider === "osm" ? "osm" : "yandex";
+    state.mapProvider = requested;
+    els.yandexMap.hidden = requested !== "yandex";
+    els.map.hidden = requested !== "osm";
+    document.querySelectorAll("[data-map-provider]").forEach(button => {
+      const active = button.dataset.mapProvider === requested;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+
+    if (requested === "yandex") {
+      if (!state.yandexReady) els.mapPanel.classList.add("is-map-loading");
+      else {
+        els.mapPanel.classList.remove("is-map-loading");
+        window.setTimeout(fitYandexRoute, 0);
+      }
+      return;
+    }
+
+    els.mapPanel.classList.remove("is-map-loading");
+    if (state.map && state.photoLayer) {
+      if (state.photosVisible && !state.map.hasLayer(state.photoLayer)) state.photoLayer.addTo(state.map);
+      if (!state.photosVisible && state.map.hasLayer(state.photoLayer)) state.map.removeLayer(state.photoLayer);
+    }
+    window.setTimeout(() => {
+      if (!state.map) return;
+      state.map.invalidateSize();
+      fitWholeRoute();
+    }, 0);
   }
 
   function fitWholeRoute() {
+    if (state.mapProvider === "yandex") {
+      fitYandexRoute();
+      return;
+    }
     if (!state.map) return;
     const routeLine = state.routeCoordinates.length ? state.routeCoordinates : guidedPoints.map(point => point.coordinates);
     state.map.fitBounds(L.latLngBounds(routeLine), { padding: [55, 55] });
@@ -329,22 +549,24 @@
 
   function renderRouteIssues() {
     els.routeIssueCount.textContent = `замечаний: ${state.routeIssues.length}`;
-    if (!state.routeIssueLayer || !window.L) return;
-    state.routeIssueLayer.clearLayers();
-    state.routeIssues.forEach(issue => {
-      if (!Array.isArray(issue.coordinates) || issue.coordinates.length !== 2) return;
-      const typeLabel = ROUTE_ISSUE_TYPES[issue.type] || ROUTE_ISSUE_TYPES.other;
-      const marker = L.marker(issue.coordinates, {
-        icon: L.divIcon({
-          className: "",
-          html: '<div class="route-issue-marker"><span>!</span></div>',
-          iconSize: [34, 34],
-          iconAnchor: [17, 34],
-          popupAnchor: [0, -32]
-        })
-      }).addTo(state.routeIssueLayer);
-      marker.bindPopup(`<strong>${escapeHtml(typeLabel)}</strong><br><small>${escapeHtml(issue.detail || "Без комментария")}</small><br><button class="popup-button" onclick="window.deleteKemRouteIssue('${issue.id}')">Удалить замечание</button>`);
-    });
+    if (state.routeIssueLayer && window.L) {
+      state.routeIssueLayer.clearLayers();
+      state.routeIssues.forEach(issue => {
+        if (!Array.isArray(issue.coordinates) || issue.coordinates.length !== 2) return;
+        const typeLabel = ROUTE_ISSUE_TYPES[issue.type] || ROUTE_ISSUE_TYPES.other;
+        const marker = L.marker(issue.coordinates, {
+          icon: L.divIcon({
+            className: "",
+            html: '<div class="route-issue-marker"><span>!</span></div>',
+            iconSize: [34, 34],
+            iconAnchor: [17, 34],
+            popupAnchor: [0, -32]
+          })
+        }).addTo(state.routeIssueLayer);
+        marker.bindPopup(`<strong>${escapeHtml(typeLabel)}</strong><br><small>${escapeHtml(issue.detail || "Без комментария")}</small><br><button class="popup-button" onclick="window.deleteKemRouteIssue('${issue.id}')">Удалить замечание</button>`);
+      });
+    }
+    renderYandexObjects();
   }
 
   function deleteRouteIssue(issueId) {
@@ -354,21 +576,23 @@
   }
 
   function renderCoordinateDrafts() {
-    if (!state.coordinateDraftLayer || !window.L) return;
-    state.coordinateDraftLayer.clearLayers();
-    state.edits.filter(edit => ["coordinate", "new-point"].includes(edit.field) && Array.isArray(edit.coordinates)).forEach(edit => {
-      const isNewPoint = edit.field === "new-point";
-      const marker = L.marker(edit.coordinates, {
-        icon: L.divIcon({
-          className: "",
-          html: `<div class="coordinate-draft-marker ${isNewPoint ? "coordinate-draft-marker--new" : ""}"><span>${isNewPoint ? "+" : "✓"}</span></div>`,
-          iconSize: [34, 34],
-          iconAnchor: [17, 34],
-          popupAnchor: [0, -32]
-        })
-      }).addTo(state.coordinateDraftLayer);
-      marker.bindPopup(`<strong>${escapeHtml(edit.pointName)}</strong><br><small>${isNewPoint ? "Новая экскурсионная точка" : "Уточнение координаты"}</small>${edit.source ? `<br><small>${escapeHtml(edit.source)}</small>` : ""}<br><button class="popup-button" onclick="window.deleteKemCoordinateDraft('${edit.id}')">Удалить черновик</button>`);
-    });
+    if (state.coordinateDraftLayer && window.L) {
+      state.coordinateDraftLayer.clearLayers();
+      state.edits.filter(edit => ["coordinate", "new-point"].includes(edit.field) && Array.isArray(edit.coordinates)).forEach(edit => {
+        const isNewPoint = edit.field === "new-point";
+        const marker = L.marker(edit.coordinates, {
+          icon: L.divIcon({
+            className: "",
+            html: `<div class="coordinate-draft-marker ${isNewPoint ? "coordinate-draft-marker--new" : ""}"><span>${isNewPoint ? "+" : "✓"}</span></div>`,
+            iconSize: [34, 34],
+            iconAnchor: [17, 34],
+            popupAnchor: [0, -32]
+          })
+        }).addTo(state.coordinateDraftLayer);
+        marker.bindPopup(`<strong>${escapeHtml(edit.pointName)}</strong><br><small>${isNewPoint ? "Новая экскурсионная точка" : "Уточнение координаты"}</small>${edit.source ? `<br><small>${escapeHtml(edit.source)}</small>` : ""}<br><button class="popup-button" onclick="window.deleteKemCoordinateDraft('${edit.id}')">Удалить черновик</button>`);
+      });
+    }
+    renderYandexObjects();
   }
 
   function deleteCoordinateDraft(editId) {
@@ -388,25 +612,51 @@
 
   function captureCoordinate(latlng) {
     setCoordinateMode(false);
+    state.coordinatePreview = [latlng.lat, latlng.lng];
     if (state.coordinateMarker) state.coordinateMarker.remove();
-    state.coordinateMarker = L.marker(latlng, {
-      icon: L.divIcon({ className: "", html: '<div class="coordinate-marker">＋</div>', iconSize: [30, 30], iconAnchor: [15, 15] })
-    }).addTo(state.map);
+    if (state.map && window.L) {
+      state.coordinateMarker = L.marker(latlng, {
+        icon: L.divIcon({ className: "", html: '<div class="coordinate-marker">＋</div>', iconSize: [30, 30], iconAnchor: [15, 15] })
+      }).addTo(state.map);
+    }
+    renderYandexObjects();
     document.querySelector("#coordinateLat").value = latlng.lat.toFixed(6);
     document.querySelector("#coordinateLng").value = latlng.lng.toFixed(6);
     els.coordinateDialog.showModal();
   }
 
   function showUserLocation(event) {
-    if (state.userMarker) state.userMarker.remove();
-    if (state.accuracyCircle) state.accuracyCircle.remove();
-    state.userMarker = L.marker(event.latlng, {
-      icon: L.divIcon({ className: "", html: '<div class="user-marker"></div>', iconSize: [24, 24], iconAnchor: [12, 12] })
-    }).addTo(state.map).bindPopup("Вы находитесь здесь").openPopup();
-    state.accuracyCircle = L.circle(event.latlng, { radius: event.accuracy, color: "#1769aa", weight: 1, fillOpacity: .08 }).addTo(state.map);
-    const nearest = guidedPoints.map(point => ({ point, distance: state.map.distance(event.latlng, point.coordinates) })).sort((a, b) => a.distance - b.distance)[0];
+    state.userLocation = [event.latlng.lat, event.latlng.lng];
+    state.userAccuracy = event.accuracy || 0;
+    if (state.map && window.L) {
+      if (state.userMarker) state.userMarker.remove();
+      if (state.accuracyCircle) state.accuracyCircle.remove();
+      state.userMarker = L.marker(event.latlng, {
+        icon: L.divIcon({ className: "", html: '<div class="user-marker"></div>', iconSize: [24, 24], iconAnchor: [12, 12] })
+      }).addTo(state.map).bindPopup("Вы находитесь здесь");
+      state.accuracyCircle = L.circle(event.latlng, { radius: event.accuracy, color: "#1769aa", weight: 1, fillOpacity: .08 }).addTo(state.map);
+    }
+    renderYandexObjects();
+    if (state.mapProvider === "yandex" && state.yandexReady) {
+      state.yandexMap.update({ location: { center: toYandexCoordinates(state.userLocation), zoom: 16, duration: 450 } });
+    } else if (state.map) {
+      state.map.setView(event.latlng, 16);
+      state.userMarker?.openPopup();
+    }
+    const nearest = guidedPoints.map(point => ({ point, distance: distanceMeters(state.userLocation, point.coordinates) })).sort((a, b) => a.distance - b.distance)[0];
     const distanceText = nearest.distance < 1000 ? `${Math.round(nearest.distance)} м` : `${(nearest.distance / 1000).toFixed(1)} км`;
     showToast(`Ближайшая готовая точка — «${nearest.point.shortTitle}», ${distanceText}`);
+  }
+
+  function distanceMeters(from, to) {
+    const radians = degrees => degrees * Math.PI / 180;
+    const earthRadius = 6371000;
+    const lat1 = radians(from[0]);
+    const lat2 = radians(to[0]);
+    const deltaLat = radians(to[0] - from[0]);
+    const deltaLng = radians(to[1] - from[1]);
+    const a = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2;
+    return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
   function renderPoints() {
@@ -436,7 +686,11 @@
     if (!point) return;
     state.currentPointIndex = guidedPoints.indexOf(point);
     highlightPoint(pointId);
-    if (state.map) state.map.flyTo(point.coordinates, 16, { duration: .65 });
+    if (state.mapProvider === "yandex" && state.yandexReady) {
+      state.yandexMap.update({ location: { center: toYandexCoordinates(point.coordinates), zoom: 16, duration: 650 } });
+    } else if (state.map) {
+      state.map.flyTo(point.coordinates, 16, { duration: .65 });
+    }
 
     els.pointDialogContent.innerHTML = `
       ${statusBadge(point)}
@@ -482,7 +736,10 @@
     els.pointsPanel.hidden = false;
     els.guidePanel.hidden = true;
     document.querySelectorAll(".segmented__button").forEach(button => button.classList.toggle("is-active", button.dataset.view === "map"));
-    window.setTimeout(() => state.map && state.map.invalidateSize(), 0);
+    window.setTimeout(() => {
+      if (state.mapProvider === "osm") state.map?.invalidateSize();
+      else fitYandexRoute();
+    }, 0);
   }
 
   function renderGuide() {
@@ -550,6 +807,7 @@
     const planFilterButton = event.target.closest("[data-plan-filter]");
     const openPlanButton = event.target.closest("[data-open-plan]");
     const photoButton = event.target.closest("[data-photo-id]");
+    const mapProviderButton = event.target.closest("[data-map-provider]");
 
     if (pointCard) {
       openPoint(pointCard.dataset.pointId);
@@ -573,6 +831,7 @@
       document.querySelector(".workspace").scrollIntoView({ behavior: "smooth", block: "start" });
     }
     if (photoButton) openPhoto(photoButton.dataset.photoId);
+    if (mapProviderButton) setMapProvider(mapProviderButton.dataset.mapProvider);
   });
 
   document.querySelector("#startTourButton").addEventListener("click", () => enterGuide(0));
@@ -601,17 +860,34 @@
   document.querySelectorAll(".segmented__button").forEach(button => button.addEventListener("click", () => button.dataset.view === "guide" ? enterGuide(state.currentPointIndex) : exitGuide()));
   document.querySelector("#aboutButton").addEventListener("click", () => document.querySelector("#aboutDialog").showModal());
   document.querySelector("#photosButton").addEventListener("click", () => {
-    if (!state.map || !state.photoLayer) return;
-    const visible = state.map.hasLayer(state.photoLayer);
-    if (visible) state.map.removeLayer(state.photoLayer); else state.photoLayer.addTo(state.map);
-    showToast(visible ? "Фотографии скрыты" : "Фотографии показаны на карте");
+    state.photosVisible = !state.photosVisible;
+    if (state.map && state.photoLayer) {
+      if (state.photosVisible) state.photoLayer.addTo(state.map); else state.map.removeLayer(state.photoLayer);
+    }
+    renderYandexObjects();
+    const button = document.querySelector("#photosButton");
+    button.classList.toggle("is-active", state.photosVisible);
+    button.setAttribute("aria-pressed", String(state.photosVisible));
+    showToast(state.photosVisible ? "Фотографии показаны на карте" : "Фотографии скрыты");
   });
   document.querySelector("#coordinateModeButton").addEventListener("click", () => setCoordinateMode(!state.coordinateMode));
   document.querySelector("#routeReviewButton").addEventListener("click", () => setRouteReviewMode(!state.routeReviewMode));
   document.querySelector("#locateButton").addEventListener("click", () => {
-    if (!state.map) return;
     showToast("Определяем местоположение…");
-    state.map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true, timeout: 12000 });
+    if (!navigator.geolocation) {
+      showToast("Этот браузер не поддерживает геолокацию");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(position => {
+      showUserLocation({
+        latlng: { lat: position.coords.latitude, lng: position.coords.longitude },
+        accuracy: position.coords.accuracy
+      });
+    }, () => showToast("Не удалось определить местоположение. Проверьте разрешение геолокации."), {
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 30000
+    });
   });
   document.querySelector("#fitRouteButton").addEventListener("click", fitWholeRoute);
   document.querySelector("#fullscreenMapButton").addEventListener("click", () => toggleMapFullscreen().catch(() => showToast("Не удалось открыть карту на весь экран")));
@@ -619,7 +895,10 @@
     const fullscreen = document.fullscreenElement === els.mapPanel;
     document.querySelector("#fullscreenMapButton").classList.toggle("is-active", fullscreen);
     document.querySelector("#fullscreenMapButton").textContent = fullscreen ? "× Закрыть" : "⛶ На весь экран";
-    window.setTimeout(() => state.map && state.map.invalidateSize(), 80);
+    window.setTimeout(() => {
+      if (state.mapProvider === "osm") state.map?.invalidateSize();
+      else fitYandexRoute();
+    }, 80);
   });
   document.querySelector("#exportButton").addEventListener("click", exportEdits);
   document.querySelector("#resetProgressButton").addEventListener("click", () => {
@@ -677,11 +956,21 @@
       state.coordinateMarker.remove();
       state.coordinateMarker = null;
     }
+    state.coordinatePreview = null;
     renderCoordinateDrafts();
     els.coordinateDialog.close();
     els.coordinateForm.reset();
     updateCoordinatePointMode();
     showToast(isNewPoint ? "Новая точка сохранена как черновик" : "Координата сохранена как редакционный черновик");
+  });
+
+  els.coordinateDialog.addEventListener("close", () => {
+    if (state.coordinateMarker) {
+      state.coordinateMarker.remove();
+      state.coordinateMarker = null;
+    }
+    state.coordinatePreview = null;
+    renderYandexObjects();
   });
 
   els.routeIssueForm.addEventListener("submit", event => {
