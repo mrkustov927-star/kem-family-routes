@@ -44,7 +44,8 @@
     yandexMap: null,
     yandexClasses: null,
     yandexObjects: [],
-    yandexReady: false
+    yandexReady: false,
+    yandexStatus: "idle"
   };
 
   const els = {
@@ -132,6 +133,7 @@
     setMapProvider("yandex");
     initYandexMap().catch(error => {
       console.error("Yandex Maps failed to initialize", error);
+      state.yandexStatus = "failed";
       setMapProvider("osm");
       showToast("Яндекс Карта недоступна — включена резервная карта");
     });
@@ -141,7 +143,7 @@
     if (window.ymaps3) return Promise.resolve();
     return new Promise((resolve, reject) => {
       const script = document.createElement("script");
-      const timer = window.setTimeout(() => reject(new Error("Yandex Maps loading timeout")), 12000);
+      const timer = window.setTimeout(() => reject(new Error("Yandex Maps loading timeout")), 8000);
       script.src = `https://api-maps.yandex.ru/v3/?apikey=${encodeURIComponent(YANDEX_MAPS_API_KEY)}&lang=ru_RU`;
       script.async = true;
       script.onload = () => {
@@ -157,9 +159,14 @@
   }
 
   async function initYandexMap() {
+    state.yandexStatus = "loading";
     els.mapPanel.classList.add("is-map-loading");
     await loadYandexApi();
-    await window.ymaps3.ready;
+    if (!window.ymaps3?.ready) throw new Error("Yandex Maps API is unavailable");
+    await Promise.race([
+      window.ymaps3.ready,
+      new Promise((_, reject) => window.setTimeout(() => reject(new Error("Yandex Maps readiness timeout")), 8000))
+    ]);
     const { YMap, YMapDefaultSchemeLayer, YMapDefaultFeaturesLayer, YMapFeature, YMapMarker, YMapListener } = window.ymaps3;
     state.yandexClasses = { YMapFeature, YMapMarker };
     state.yandexMap = new YMap(els.yandexMap, {
@@ -177,6 +184,7 @@
       }
     }));
     state.yandexReady = true;
+    state.yandexStatus = "ready";
     renderYandexObjects();
     els.mapPanel.classList.remove("is-map-loading");
     if (state.mapProvider === "yandex") fitYandexRoute();
@@ -424,7 +432,11 @@
   }
 
   function setMapProvider(provider) {
-    const requested = provider === "osm" ? "osm" : "yandex";
+    let requested = provider === "osm" ? "osm" : "yandex";
+    if (requested === "yandex" && state.yandexStatus === "failed") {
+      requested = "osm";
+      showToast("Яндекс Карта пока недоступна. Обновите страницу после активации ключа.");
+    }
     state.mapProvider = requested;
     els.yandexMap.hidden = requested !== "yandex";
     els.map.hidden = requested !== "osm";
