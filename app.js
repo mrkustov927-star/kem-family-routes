@@ -8,7 +8,7 @@
   const STORAGE_PROGRESS = "kem-route-progress-v1";
   const STORAGE_EDITS = "kem-route-edits-v1";
   const STORAGE_ROUTE_ISSUES = "kem-route-issues-v1";
-  const YANDEX_MAPS_API_KEY = "7993e7ec-a005-44a1-bff9-d9d7df0eb41a";
+  const YANDEX_MAPS_API_KEY = "0eee433d-7b26-4439-94d2-6ee11f533686";
   const ROUTE_ISSUE_TYPES = {
     closed: "Проход закрыт",
     crossing: "Опасный переход",
