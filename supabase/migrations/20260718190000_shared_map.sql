@@ -281,7 +281,7 @@ drop policy if exists "participants read revisions" on public.point_revisions;
 create policy "participants read revisions" on public.point_revisions for select to authenticated using (true);
 
 grant usage on schema public to anon, authenticated;
-grant select on public.points, public.routes, public.route_waypoints to anon;
+grant select on public.points, public.routes, public.route_waypoints, public.photos to anon;
 grant select on public.points, public.routes, public.route_waypoints, public.photos, public.profiles, public.point_revisions to authenticated;
 grant insert, update on public.points, public.photos to authenticated;
 grant insert, update on public.profiles to authenticated;
