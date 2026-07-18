@@ -24,7 +24,11 @@
         <small>по Кеми с Первыми</small>
       </span>
     </a>
-    <button class="icon-button" id="aboutButton" type="button" aria-label="О проекте">?</button>
+    <div class="topbar__actions">
+      <span class="sync-status" id="syncStatus" data-state="local" title="Состояние общей карты"><i></i><span>Локально</span></span>
+      <button class="account-button" id="accountButton" type="button">Войти</button>
+      <button class="icon-button" id="aboutButton" type="button" aria-label="О проекте">?</button>
+    </div>
   </header>
 
   <main id="main">
@@ -67,9 +71,18 @@
             <button class="map-action" id="locateButton" type="button"><span aria-hidden="true">◎</span> Я здесь</button>
             <button class="map-action" id="fitRouteButton" type="button"><span aria-hidden="true">⌖</span> Весь маршрут</button>
             <button class="map-action" id="coordinateModeButton" type="button" aria-pressed="false"><span aria-hidden="true">＋</span> Поставить точку</button>
+            <button class="map-action" id="routeEditButton" type="button" aria-pressed="false"><span aria-hidden="true">⌁</span> Проложить маршрут</button>
             <button class="map-action" id="routeReviewButton" type="button" aria-pressed="false"><span aria-hidden="true">!</span> Проверить путь</button>
             <button class="map-action" id="photosButton" type="button" aria-pressed="false"><span aria-hidden="true">▣</span> Фотографии</button>
             <button class="map-action" id="fullscreenMapButton" type="button"><span aria-hidden="true">⛶</span> На весь экран</button>
+          </div>
+          <div class="route-editor" id="routeEditor" hidden>
+            <div><strong>Редактор маршрута</strong><span id="routeEditorHint">Нажимайте по улицам по порядку</span></div>
+            <span class="route-editor__count" id="routeEditorCount">0 узлов</span>
+            <button type="button" id="routeUndoButton">↶ Отменить</button>
+            <button type="button" id="routeResetButton">Начать заново</button>
+            <button class="route-editor__save" type="button" id="routeSaveButton">Сохранить для всех</button>
+            <button type="button" id="routeCancelButton">Закрыть</button>
           </div>
           <div class="map-stack">
             <div id="yandexMap" class="map-canvas" aria-label="Яндекс Карта с маршрутом экскурсии по Кеми"></div>
@@ -266,6 +279,70 @@
     </form>
   </dialog>
 
+  <dialog class="auth-dialog" id="authDialog">
+    <form class="dialog-shell edit-form" id="authForm">
+      <button class="dialog-close" type="button" data-close-dialog="authDialog" aria-label="Закрыть">×</button>
+      <p class="eyebrow">Общая редакционная карта</p>
+      <div id="authSignedOut">
+        <h2>Вход участника</h2>
+        <p class="muted">После входа вы сможете редактировать все точки, добавлять фотографии и сохранять общий маршрут. Учётную запись создаёт руководитель проекта.</p>
+        <label>Электронная почта<input id="authEmail" name="email" type="email" autocomplete="email" required placeholder="name@example.ru"></label>
+        <label>Пароль<input id="authPassword" name="password" type="password" autocomplete="current-password" placeholder="Пароль участника"></label>
+        <div class="dialog-actions auth-actions">
+          <button class="button button--ghost" id="magicLinkButton" type="button">Получить ссылку на почту</button>
+          <button class="button button--primary" id="signInButton" type="submit">Войти</button>
+        </div>
+        <p class="form-note">Если вход ещё не настроен, материалы по-прежнему можно сохранить локально и выгрузить редактору.</p>
+      </div>
+      <div id="authSignedIn" hidden>
+        <h2>Вы вошли</h2>
+        <div class="profile-card"><span class="profile-card__avatar" id="profileAvatar">У</span><div><strong id="profileName">Участник</strong><small id="profileEmail"></small><em id="profileRole">участник</em></div></div>
+        <label>Имя на карте<input id="profileDisplayName" name="displayName" autocomplete="name" maxlength="80"></label>
+        <div class="dialog-actions dialog-actions--split">
+          <button class="text-button text-button--danger" id="signOutButton" type="button">Выйти</button>
+          <button class="button button--primary" id="saveProfileButton" type="button">Сохранить имя</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="shared-point-dialog" id="sharedPointDialog">
+    <form class="dialog-shell edit-form shared-point-form" id="sharedPointForm">
+      <button class="dialog-close" type="button" data-close-dialog="sharedPointDialog" aria-label="Закрыть">×</button>
+      <p class="eyebrow">Общая карта · доступ участника</p>
+      <h2>Редактировать точку</h2>
+      <p class="muted">Изменения сохранятся в общей базе и появятся у других участников. Источники и непроверенные сведения отмечайте прямо в тексте.</p>
+      <input id="sharedPointId" name="id" type="hidden">
+      <div class="coordinate-fields">
+        <label>Номер в маршруте<input id="sharedPointOrder" name="routeOrder" type="number" min="1" max="999"></label>
+        <label>Глава<select id="sharedPointChapter" name="chapter" required></select></label>
+      </div>
+      <label>Полное название<input id="sharedPointTitle" name="title" required maxlength="180"></label>
+      <label>Короткое название<input id="sharedPointShortTitle" name="shortTitle" maxlength="80" placeholder="Для маркера и списка"></label>
+      <div class="coordinate-fields coordinate-fields--three">
+        <label>Статус материала<select id="sharedPointStatus" name="status"><option value="research">Исследуем</option><option value="draft">Черновик</option><option value="published">Опубликовано</option></select></label>
+        <label>Статус координаты<select id="sharedPointCoordinateStatus" name="coordinateStatus"><option value="needs-check">Нужно проверить</option><option value="verified">Проверена</option></select></label>
+        <label>Время рассказа<input id="sharedPointDuration" name="duration" maxlength="40" placeholder="6–8 минут"></label>
+      </div>
+      <div class="coordinate-fields">
+        <label>Широта<input id="sharedPointLat" name="lat" inputmode="decimal" placeholder="64.955037"></label>
+        <label>Долгота<input id="sharedPointLng" name="lng" inputmode="decimal" placeholder="34.570146"></label>
+      </div>
+      <label>Пояснение к координате<textarea id="sharedPointCoordinateNote" name="coordinateNote" rows="2" placeholder="Где безопасно остановить группу и что нужно проверить"></textarea></label>
+      <label>Короткое вступление<textarea id="sharedPointIntro" name="intro" rows="3"></textarea></label>
+      <label>Факты — по одному в каждой строке<textarea id="sharedPointFacts" name="facts" rows="6"></textarea></label>
+      <label>Что показать<textarea id="sharedPointShow" name="show" rows="3"></textarea></label>
+      <label>Текст экскурсовода<textarea id="sharedPointGuideText" name="guideText" rows="6"></textarea></label>
+      <label>Вопрос семье<textarea id="sharedPointFamilyQuestion" name="familyQuestion" rows="3"></textarea></label>
+      <label>Безопасность<textarea id="sharedPointSafety" name="safety" rows="3"></textarea></label>
+      <label>Источники — строка в формате «Название | ссылка»<textarea id="sharedPointSources" name="sources" rows="4" placeholder="Музей «Поморье» | https://example.ru"></textarea></label>
+      <div class="dialog-actions">
+        <button class="button button--ghost" type="button" data-close-dialog="sharedPointDialog">Отмена</button>
+        <button class="button button--primary" id="sharedPointSaveButton" type="submit">Сохранить для всех</button>
+      </div>
+    </form>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <footer>
@@ -274,9 +351,12 @@
   </footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.7/dist/umd/supabase.min.js"></script>
   <script src="./points.js"></script>
   <script src="./photos.js"></script>
   <script src="./route-geometry.js"></script>
+  <script src="./supabase-config.js"></script>
+  <script src="./community.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
