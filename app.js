@@ -34,6 +34,7 @@
     routeIssueLayer: null,
     coordinateDraftLayer: null,
     coordinateMode: false,
+    relocatingDraftId: null,
     routeReviewMode: false,
     coordinateMarker: null,
     userMarker: null,
@@ -83,6 +84,14 @@
     coordinateForm: document.querySelector("#coordinateForm"),
     coordinateNewPointLabel: document.querySelector("#coordinateNewPointLabel"),
     coordinateNewPointName: document.querySelector("#coordinateNewPointName"),
+    draftPointDialog: document.querySelector("#draftPointDialog"),
+    draftPointForm: document.querySelector("#draftPointForm"),
+    draftPointEditId: document.querySelector("#draftPointEditId"),
+    draftPointName: document.querySelector("#draftPointName"),
+    draftPointNote: document.querySelector("#draftPointNote"),
+    draftPointAuthor: document.querySelector("#draftPointAuthor"),
+    draftPointLat: document.querySelector("#draftPointLat"),
+    draftPointLng: document.querySelector("#draftPointLng"),
     routeIssueDialog: document.querySelector("#routeIssueDialog"),
     routeIssueForm: document.querySelector("#routeIssueForm"),
     routeIssueCount: document.querySelector("#routeIssueCount"),
@@ -440,7 +449,8 @@
         `<div class="coordinate-draft-marker ${isNewPoint ? "coordinate-draft-marker--new" : ""}"><span>${isNewPoint ? "+" : "✓"}</span></div>`,
         `${edit.pointName}: ${isNewPoint ? "новая точка" : "уточнение координаты"}`,
         () => {
-          if (window.confirm(`Удалить черновик «${edit.pointName}»?`)) deleteCoordinateDraft(edit.id);
+          if (isNewPoint) openDraftPoint(edit.id);
+          else if (window.confirm(`Удалить уточнение «${edit.pointName}»?`)) deleteCoordinateDraft(edit.id);
         }
       );
     });
@@ -577,6 +587,7 @@
   function openPhotoUpload(pointId = "") {
     if (els.pointDialog.open) els.pointDialog.close();
     if (els.photoDialog.open) els.photoDialog.close();
+    if (els.draftPointDialog.open) els.draftPointDialog.close();
     els.photoUploadForm.reset();
     els.photoUploadPreview.hidden = true;
     els.photoUploadPreview.querySelector("img").removeAttribute("src");
@@ -644,6 +655,7 @@
 
   function setCoordinateMode(enabled) {
     if (enabled && state.routeReviewMode) setRouteReviewMode(false);
+    if (!enabled) state.relocatingDraftId = null;
     state.coordinateMode = enabled;
     els.mapPanel.classList.toggle("is-coordinate-mode", enabled);
     const button = document.querySelector("#coordinateModeButton");
@@ -716,17 +728,51 @@
             popupAnchor: [0, -32]
           })
         }).addTo(state.coordinateDraftLayer);
-        marker.bindPopup(`<strong>${escapeHtml(edit.pointName)}</strong><br><small>${isNewPoint ? "Новая экскурсионная точка" : "Уточнение координаты"}</small>${edit.source ? `<br><small>${escapeHtml(edit.source)}</small>` : ""}<br><button class="popup-button" onclick="window.deleteKemCoordinateDraft('${edit.id}')">Удалить черновик</button>`);
+        const action = isNewPoint
+          ? `<button class="popup-button" onclick="window.openKemDraftPoint('${edit.id}')">Открыть черновик →</button>`
+          : `<button class="popup-button" onclick="window.deleteKemCoordinateDraft('${edit.id}')">Удалить уточнение</button>`;
+        marker.bindPopup(`<strong>${escapeHtml(edit.pointName)}</strong><br><small>${isNewPoint ? "Новая экскурсионная точка" : "Уточнение координаты"}</small>${edit.source ? `<br><small>${escapeHtml(edit.source)}</small>` : ""}<br>${action}`);
       });
     }
     renderYandexObjects();
   }
 
   function deleteCoordinateDraft(editId) {
-    state.edits = state.edits.filter(edit => edit.id !== editId);
+    const draft = state.edits.find(edit => edit.id === editId);
+    state.edits = state.edits.filter(edit => edit.id !== editId && !(draft?.field === "new-point" && edit.pointId === draft.pointId));
+    if (draft?.field === "new-point") {
+      state.photoDrafts = state.photoDrafts.filter(photo => photo.pointId !== draft.pointId);
+      savePhotoDrafts();
+      renderPhotos();
+      renderPhotoLayer();
+      renderPlan();
+    }
     localStorage.setItem(STORAGE_EDITS, JSON.stringify(state.edits));
     renderCoordinateDrafts();
+    if (els.draftPointDialog.open) els.draftPointDialog.close();
     showToast("Черновик точки удалён");
+  }
+
+  function openDraftPoint(editId) {
+    const draft = state.edits.find(edit => edit.id === editId && edit.field === "new-point");
+    if (!draft) return;
+    els.draftPointForm.reset();
+    els.draftPointEditId.value = draft.id;
+    els.draftPointName.value = draft.pointName || "";
+    els.draftPointNote.value = draft.source || "";
+    els.draftPointAuthor.value = draft.author || "";
+    els.draftPointLat.value = Number(draft.coordinates?.[0]).toFixed(6);
+    els.draftPointLng.value = Number(draft.coordinates?.[1]).toFixed(6);
+    els.draftPointDialog.showModal();
+  }
+
+  function startDraftRelocation(editId) {
+    const draft = state.edits.find(edit => edit.id === editId && edit.field === "new-point");
+    if (!draft) return;
+    els.draftPointDialog.close();
+    state.relocatingDraftId = draft.id;
+    setCoordinateMode(true);
+    showToast(`Нажмите новое место для точки «${draft.pointName}»`);
   }
 
   function updateCoordinatePointMode() {
@@ -738,7 +784,20 @@
   }
 
   function captureCoordinate(latlng) {
+    const relocatingDraftId = state.relocatingDraftId;
     setCoordinateMode(false);
+    if (relocatingDraftId) {
+      const draft = state.edits.find(edit => edit.id === relocatingDraftId && edit.field === "new-point");
+      if (!draft) return;
+      draft.coordinates = [latlng.lat, latlng.lng];
+      draft.text = `${draft.pointName}: ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`;
+      draft.updatedAt = new Date().toISOString();
+      localStorage.setItem(STORAGE_EDITS, JSON.stringify(state.edits));
+      renderCoordinateDrafts();
+      renderPhotoLayer();
+      showToast(`Точка «${draft.pointName}» перемещена`);
+      return;
+    }
     state.coordinatePreview = [latlng.lat, latlng.lng];
     if (state.coordinateMarker) state.coordinateMarker.remove();
     if (state.map && window.L) {
@@ -839,10 +898,14 @@
   }
 
   function openEdit(pointId) {
-    const point = guidedPoints.find(item => item.id === pointId) || route.plannedPoints.find(item => item.id === pointId);
+    const draft = state.edits.find(edit => edit.field === "new-point" && edit.pointId === pointId);
+    const point = guidedPoints.find(item => item.id === pointId)
+      || route.plannedPoints.find(item => item.id === pointId)
+      || (draft ? { id: draft.pointId, title: draft.pointName } : null);
     if (!point) return;
     if (els.pointDialog.open) els.pointDialog.close();
     if (els.photoDialog.open) els.photoDialog.close();
+    if (els.draftPointDialog.open) els.draftPointDialog.close();
     els.editForm.reset();
     document.querySelector("#editPointId").value = point.id;
     document.querySelector("#editPointName").value = point.title;
@@ -924,6 +987,7 @@
 
   window.openKemPoint = openPoint;
   window.openKemPhoto = openPhoto;
+  window.openKemDraftPoint = openDraftPoint;
   window.deleteKemRouteIssue = deleteRouteIssue;
   window.deleteKemCoordinateDraft = deleteCoordinateDraft;
   window.deleteKemPhotoDraft = deletePhotoDraft;
@@ -1042,6 +1106,46 @@
     saveProgress();
     renderPoints();
     showToast("Прогресс маршрута сброшен");
+  });
+
+  els.draftPointForm.addEventListener("submit", event => {
+    event.preventDefault();
+    const formData = new FormData(els.draftPointForm);
+    const draft = state.edits.find(edit => edit.id === formData.get("editId") && edit.field === "new-point");
+    if (!draft) return;
+    const pointName = String(formData.get("pointName") || "").trim();
+    if (!pointName) {
+      showToast("Введите название точки");
+      return;
+    }
+    draft.pointName = pointName;
+    draft.source = String(formData.get("note") || "").trim();
+    draft.author = String(formData.get("author") || "").trim();
+    draft.text = `${pointName}: ${draft.coordinates[0].toFixed(6)}, ${draft.coordinates[1].toFixed(6)}`;
+    draft.updatedAt = new Date().toISOString();
+    localStorage.setItem(STORAGE_EDITS, JSON.stringify(state.edits));
+    renderCoordinateDrafts();
+    renderPhotoLayer();
+    renderPhotos();
+    els.draftPointDialog.close();
+    showToast("Изменения черновика сохранены");
+  });
+
+  document.querySelector("#draftPointMaterialButton").addEventListener("click", () => {
+    const draft = state.edits.find(edit => edit.id === els.draftPointEditId.value && edit.field === "new-point");
+    if (draft) openEdit(draft.pointId);
+  });
+  document.querySelector("#draftPointPhotoButton").addEventListener("click", () => {
+    const draft = state.edits.find(edit => edit.id === els.draftPointEditId.value && edit.field === "new-point");
+    if (draft) openPhotoUpload(draft.pointId);
+  });
+  document.querySelector("#draftPointRelocateButton").addEventListener("click", () => startDraftRelocation(els.draftPointEditId.value));
+  document.querySelector("#draftPointDeleteButton").addEventListener("click", () => {
+    const draft = state.edits.find(edit => edit.id === els.draftPointEditId.value && edit.field === "new-point");
+    if (!draft) return;
+    const relatedPhotos = state.photoDrafts.filter(photo => photo.pointId === draft.pointId).length;
+    const warning = relatedPhotos ? ` Вместе с точкой будут удалены связанные фоточерновики: ${relatedPhotos}.` : "";
+    if (window.confirm(`Удалить черновик «${draft.pointName}»?${warning}`)) deleteCoordinateDraft(draft.id);
   });
 
   els.photoUploadForm.addEventListener("submit", async event => {
