@@ -227,6 +227,28 @@
     </form>
   </dialog>
 
+  <dialog class="draft-point-dialog" id="draftPointDialog">
+    <form class="dialog-shell edit-form" id="draftPointForm">
+      <button class="dialog-close" type="button" data-close-dialog="draftPointDialog" aria-label="Закрыть">×</button>
+      <p class="eyebrow">Черновик участника</p>
+      <h2>Новая точка</h2>
+      <input id="draftPointEditId" name="editId" type="hidden">
+      <label>Название точки<input id="draftPointName" name="pointName" required maxlength="140"></label>
+      <label>Комментарий<textarea id="draftPointNote" name="note" rows="4" placeholder="Что здесь показывать, где безопасно остановиться, что нужно проверить"></textarea></label>
+      <label>Автор черновика<input id="draftPointAuthor" name="author" autocomplete="name" placeholder="Имя участника"></label>
+      <div class="coordinate-fields">
+        <label>Широта<input id="draftPointLat" name="lat" readonly></label>
+        <label>Долгота<input id="draftPointLng" name="lng" readonly></label>
+      </div>
+      <div class="draft-point-tools" aria-label="Работа с черновиком">
+        <button class="button button--ghost" id="draftPointMaterialButton" type="button">＋ Добавить материал</button>
+        <button class="button button--ghost" id="draftPointPhotoButton" type="button">▣ Добавить фото</button>
+        <button class="button button--ghost" id="draftPointRelocateButton" type="button">⌖ Переместить на карте</button>
+      </div>
+      <div class="dialog-actions dialog-actions--split"><button class="text-button text-button--danger" id="draftPointDeleteButton" type="button">Удалить черновик</button><button class="button button--primary" type="submit">Сохранить изменения</button></div>
+    </form>
+  </dialog>
+
   <dialog class="route-issue-dialog" id="routeIssueDialog">
     <form class="dialog-shell edit-form" id="routeIssueForm">
       <button class="dialog-close" type="button" data-close-dialog="routeIssueDialog" aria-label="Закрыть">×</button>
