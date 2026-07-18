@@ -175,9 +175,11 @@
     return null;
   }
 
-  function setSyncStatus(status, label) {
+  function setSyncStatus(status, label, detail = "") {
     els.syncStatus.dataset.state = status;
     els.syncStatus.querySelector("span").textContent = label;
+    els.syncStatus.dataset.message = detail || label;
+    els.syncStatus.title = detail ? `${label}: ${detail}` : label;
   }
 
   function userIsAuthenticated() {
@@ -1425,7 +1427,8 @@
       applySharedWorkspace(workspace);
       setSyncStatus("online", userIsAuthenticated() ? "Общая карта" : "Онлайн");
     } catch (error) {
-      setSyncStatus("error", "Нужна настройка");
+      setSyncStatus("error", "Нужна настройка", error.message || "Общая карта пока недоступна");
+      console.error("Community workspace refresh failed", error);
       if (!quiet || userIsAuthenticated()) showToast(error.message || "Общая карта пока недоступна");
     }
   }
@@ -1449,7 +1452,7 @@
       } else if (event === "workspace") {
         scheduleWorkspaceRefresh();
       } else if (event === "error") {
-        setSyncStatus("error", "Ошибка связи");
+        setSyncStatus("error", "Ошибка связи", payload.message || "Ошибка общей карты");
         if (userIsAuthenticated()) showToast(payload.message || "Ошибка общей карты");
       }
     });
@@ -1464,7 +1467,7 @@
       await refreshCommunityWorkspace({ seed: state.community.authenticated, quiet: true });
       community.subscribeToWorkspace();
     } catch (error) {
-      setSyncStatus("error", "Нужна настройка");
+      setSyncStatus("error", "Нужна настройка", error.message || "Не удалось подключиться к общей карте");
       console.error("Community workspace failed to initialize", error);
     }
   }
@@ -1545,6 +1548,9 @@
   els.accountButton.addEventListener("click", () => {
     renderAuthState();
     els.authDialog.showModal();
+  });
+  els.syncStatus.addEventListener("click", () => {
+    showToast(els.syncStatus.dataset.message || "Состояние общей карты");
   });
   els.authForm.addEventListener("submit", async event => {
     event.preventDefault();
