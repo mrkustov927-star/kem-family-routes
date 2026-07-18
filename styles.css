@@ -223,10 +223,13 @@ dialog::backdrop { background: rgba(9,26,40,.66); backdrop-filter: blur(3px); }
 .source-list { padding-left: 18px; font-size: 13px; line-height: 1.5; color: var(--muted); }
 .source-list a { color: var(--blue); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.dialog-actions--split { justify-content: space-between; align-items: center; }
 .edit-form { display: grid; gap: 16px; }
 .edit-form label { display: grid; gap: 7px; color: var(--navy); font-size: 13px; font-weight: 750; }
 .edit-form input, .edit-form textarea, .edit-form select { width: 100%; padding: 12px 13px; border: 1px solid #c8d1d7; border-radius: 11px; background: white; color: var(--ink); }
 .edit-form textarea { resize: vertical; }
+.draft-point-tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.draft-point-tools .button { min-height: 62px; padding: 10px; }
 .muted { color: var(--muted); line-height: 1.5; }
 .toast { position: fixed; z-index: 2000; left: 50%; bottom: 24px; transform: translate(-50%, 150%); max-width: min(460px, calc(100% - 32px)); padding: 13px 18px; background: var(--navy); color: white; border-radius: 13px; box-shadow: var(--shadow); transition: transform .25s ease; }
 .toast.is-visible { transform: translate(-50%, 0); }
@@ -283,6 +286,8 @@ footer p { margin: 7px 0 0; color: #9eb3c0; }
   .principles { padding: 55px 20px; }
   .dialog-actions { flex-direction: column-reverse; }
   .dialog-actions .button { width: 100%; }
+  .dialog-actions--split { align-items: stretch; }
+  .draft-point-tools { grid-template-columns: 1fr; }
   footer { flex-direction: column; }
   .footer-actions { align-items: flex-start; flex-direction: column; }
 }
