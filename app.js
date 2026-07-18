@@ -36,6 +36,7 @@
     coordinateDraftLayer: null,
     coordinateMode: false,
     relocatingDraftId: null,
+    relocatingSharedPointId: null,
     routeReviewMode: false,
     coordinateMarker: null,
     userMarker: null,
@@ -904,7 +905,10 @@
   function setCoordinateMode(enabled) {
     if (enabled && state.routeEditMode) setRouteEditMode(false);
     if (enabled && state.routeReviewMode) setRouteReviewMode(false);
-    if (!enabled) state.relocatingDraftId = null;
+    if (!enabled) {
+      state.relocatingDraftId = null;
+      state.relocatingSharedPointId = null;
+    }
     state.coordinateMode = enabled;
     els.mapPanel.classList.toggle("is-coordinate-mode", enabled);
     const button = document.querySelector("#coordinateModeButton");
@@ -1099,6 +1103,19 @@
     showToast(`Нажмите новое место для точки «${draft.pointName}»`);
   }
 
+  function startSharedPointRelocation() {
+    if (!requireParticipant()) return;
+    const pointId = document.querySelector("#sharedPointId").value;
+    const pointTitle = document.querySelector("#sharedPointTitle").value.trim() || "точки";
+    if (!pointId) return;
+    els.sharedPointDialog.close();
+    state.relocatingSharedPointId = pointId;
+    setCoordinateMode(true);
+    els.mapPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => state.map?.invalidateSize(), 350);
+    showToast(`Нажмите новое место для точки «${pointTitle}»`);
+  }
+
   function updateCoordinatePointMode() {
     const isNewPoint = document.querySelector("#coordinatePoint").value === "__new__";
     els.coordinateNewPointLabel.hidden = !isNewPoint;
@@ -1109,7 +1126,16 @@
 
   function captureCoordinate(latlng) {
     const relocatingDraftId = state.relocatingDraftId;
+    const relocatingSharedPointId = state.relocatingSharedPointId;
     setCoordinateMode(false);
+    if (relocatingSharedPointId) {
+      document.querySelector("#sharedPointLat").value = latlng.lat.toFixed(6);
+      document.querySelector("#sharedPointLng").value = latlng.lng.toFixed(6);
+      document.querySelector("#sharedPointCoordinateStatus").value = "needs-check";
+      els.sharedPointDialog.showModal();
+      showToast("Новое место выбрано. Нажмите «Сохранить для всех»");
+      return;
+    }
     if (relocatingDraftId) {
       const draft = state.edits.find(edit => edit.id === relocatingDraftId && edit.field === "new-point");
       if (!draft) return;
@@ -1708,6 +1734,7 @@
     if (draft) openPhotoUpload(draft.pointId);
   });
   document.querySelector("#draftPointRelocateButton").addEventListener("click", () => startDraftRelocation(els.draftPointEditId.value));
+  document.querySelector("#sharedPointRelocateButton").addEventListener("click", startSharedPointRelocation);
   document.querySelector("#draftPointDeleteButton").addEventListener("click", () => {
     const draft = state.edits.find(edit => edit.id === els.draftPointEditId.value && edit.field === "new-point");
     if (!draft) return;
