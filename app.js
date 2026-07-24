@@ -10,6 +10,8 @@
   const STORAGE_EDITS = "kem-route-edits-v1";
   const STORAGE_ROUTE_ISSUES = "kem-route-issues-v1";
   const STORAGE_PHOTO_DRAFTS = "kem-route-photo-drafts-v1";
+  const STORAGE_PASSWORD_RESET_COOLDOWN = "kem-password-reset-cooldown-v1";
+  const PASSWORD_RESET_COOLDOWN_MS = 60 * 1000;
   const YANDEX_MAPS_API_KEY = "0eee433d-7b26-4439-94d2-6ee11f533686";
   const ROUTE_ISSUE_TYPES = {
     closed: "Проход закрыт",
@@ -118,6 +120,8 @@
     sharedPointSaveButton: document.querySelector("#sharedPointSaveButton"),
     routeEditor: document.querySelector("#routeEditor"),
     routeEditorCount: document.querySelector("#routeEditorCount"),
+    resetPasswordButton: document.querySelector("#resetPasswordButton"),
+    passwordResetStatus: document.querySelector("#passwordResetStatus"),
     toast: document.querySelector("#toast")
   };
 
@@ -147,6 +151,36 @@
     els.toast.classList.add("is-visible");
     window.clearTimeout(showToast.timer);
     showToast.timer = window.setTimeout(() => els.toast.classList.remove("is-visible"), 2600);
+  }
+
+  function setPasswordResetStatus(message = "", tone = "info") {
+    els.passwordResetStatus.hidden = !message;
+    els.passwordResetStatus.textContent = message;
+    els.passwordResetStatus.dataset.tone = tone;
+  }
+
+  function passwordResetCooldownUntil() {
+    const value = Number(localStorage.getItem(STORAGE_PASSWORD_RESET_COOLDOWN));
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  function updatePasswordResetCooldown() {
+    window.clearTimeout(updatePasswordResetCooldown.timer);
+    const seconds = Math.ceil((passwordResetCooldownUntil() - Date.now()) / 1000);
+    if (seconds <= 0) {
+      localStorage.removeItem(STORAGE_PASSWORD_RESET_COOLDOWN);
+      els.resetPasswordButton.disabled = false;
+      els.resetPasswordButton.textContent = "Забыли пароль?";
+      return;
+    }
+    els.resetPasswordButton.disabled = true;
+    els.resetPasswordButton.textContent = `Повторить через ${seconds} сек.`;
+    updatePasswordResetCooldown.timer = window.setTimeout(updatePasswordResetCooldown, 1000);
+  }
+
+  function startPasswordResetCooldown() {
+    localStorage.setItem(STORAGE_PASSWORD_RESET_COOLDOWN, String(Date.now() + PASSWORD_RESET_COOLDOWN_MS));
+    updatePasswordResetCooldown();
   }
 
   function escapeHtml(value) {
@@ -1627,24 +1661,29 @@
       showToast(error.message || "Не удалось отправить ссылку");
     }
   });
-  document.querySelector("#resetPasswordButton").addEventListener("click", async () => {
+  els.resetPasswordButton.addEventListener("click", async () => {
     const email = document.querySelector("#authEmail").value.trim();
     if (!email) {
       showToast("Сначала укажите электронную почту");
       document.querySelector("#authEmail").focus();
       return;
     }
-    const button = document.querySelector("#resetPasswordButton");
+    const button = els.resetPasswordButton;
     button.disabled = true;
     button.textContent = "Отправляем…";
+    setPasswordResetStatus("Запрашиваем письмо для восстановления…");
     try {
       await community.requestPasswordReset(email);
+      setPasswordResetStatus("Письмо отправлено. Проверьте входящие и папку «Спам». Повторный запрос будет доступен через минуту.", "success");
+      startPasswordResetCooldown();
       showToast("Письмо для восстановления отправлено");
     } catch (error) {
-      showToast(error.message || "Не удалось отправить письмо");
+      const message = error.message || "Не удалось отправить письмо";
+      setPasswordResetStatus(message, "error");
+      if (/лимит писем|через минуту/i.test(message)) startPasswordResetCooldown();
+      showToast(message);
     } finally {
-      button.disabled = false;
-      button.textContent = "Забыли пароль?";
+      updatePasswordResetCooldown();
     }
   });
   document.querySelector("#saveNewPasswordButton").addEventListener("click", async () => {
@@ -2072,6 +2111,7 @@
   renderCoordinateDrafts();
   initMap();
   initializeCommunity();
+  updatePasswordResetCooldown();
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
