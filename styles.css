@@ -251,6 +251,7 @@ dialog::backdrop { background: rgba(9,26,40,.66); backdrop-filter: blur(3px); }
 .edit-form label { display: grid; gap: 7px; color: var(--navy); font-size: 13px; font-weight: 750; }
 .edit-form input, .edit-form textarea, .edit-form select { width: 100%; padding: 12px 13px; border: 1px solid #c8d1d7; border-radius: 11px; background: white; color: var(--ink); }
 .edit-form textarea { resize: vertical; }
+.auth-recovery-link { width: max-content; justify-self: end; margin-top: -8px; }
 .coordinate-fields--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .form-note { margin: 0; padding: 11px 13px; border-radius: 11px; background: #f2f6f8; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .profile-card { display: flex; align-items: center; gap: 13px; padding: 16px; border: 1px solid #b9dcca; border-radius: 16px; background: #eef7f2; }
