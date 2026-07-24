@@ -20,8 +20,15 @@
   function normalizeError(error, fallback) {
     if (!error) return new Error(fallback);
     const message = error.message || fallback;
+    const code = String(error.code || "");
     if (/Invalid login credentials/i.test(message)) return new Error("Неверная почта или пароль");
     if (/Email not confirmed/i.test(message)) return new Error("Сначала подтвердите почту по ссылке из письма");
+    if (code === "over_email_send_rate_limit" || /email rate limit exceeded/i.test(message)) {
+      return new Error("Лимит писем временно исчерпан. Подождите около часа с момента последнего письма и попробуйте снова");
+    }
+    if (code === "over_request_rate_limit" || /for security purposes.*request.*after|rate limit.*seconds/i.test(message)) {
+      return new Error("Письмо уже запрошено. Повторить отправку можно через минуту");
+    }
     if (/relation .* does not exist|schema cache|could not find the table|PGRST205/i.test(message)) {
       schemaReady = false;
       return new Error("Общая база ещё не подготовлена: нужно выполнить установочный SQL");
