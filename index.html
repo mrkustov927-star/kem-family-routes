@@ -288,11 +288,22 @@
         <p class="muted">После входа вы сможете редактировать все точки, добавлять фотографии и сохранять общий маршрут. Учётную запись создаёт руководитель проекта.</p>
         <label>Электронная почта<input id="authEmail" name="email" type="email" autocomplete="email" required placeholder="name@example.ru"></label>
         <label>Пароль<input id="authPassword" name="password" type="password" autocomplete="current-password" placeholder="Пароль участника"></label>
+        <button class="text-button auth-recovery-link" id="resetPasswordButton" type="button">Забыли пароль?</button>
         <div class="dialog-actions auth-actions">
           <button class="button button--ghost" id="magicLinkButton" type="button">Получить ссылку на почту</button>
           <button class="button button--primary" id="signInButton" type="submit">Войти</button>
         </div>
         <p class="form-note">Если вход ещё не настроен, материалы по-прежнему можно сохранить локально и выгрузить редактору.</p>
+      </div>
+      <div id="authRecovery" hidden>
+        <h2>Новый пароль</h2>
+        <p class="muted">Придумайте новый пароль для своей учётной записи. Он должен содержать не менее 8 символов.</p>
+        <label>Новый пароль<input id="newAuthPassword" name="newPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Не менее 8 символов"></label>
+        <label>Повторите пароль<input id="confirmAuthPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Введите пароль ещё раз"></label>
+        <div class="dialog-actions">
+          <button class="button button--primary" id="saveNewPasswordButton" type="button">Сохранить новый пароль</button>
+        </div>
+        <p class="form-note">После сохранения вы останетесь в своей учётной записи. Права администратора и материалы не изменятся.</p>
       </div>
       <div id="authSignedIn" hidden>
         <h2>Вы вошли</h2>
@@ -357,7 +368,7 @@
   <script src="./photos.js"></script>
   <script src="./route-geometry.js"></script>
   <script src="./supabase-config.js?v=20260718-2"></script>
-  <script src="./community.js"></script>
-  <script src="./app.js?v=20260719-1"></script>
+  <script src="./community.js?v=20260724-1"></script>
+  <script src="./app.js?v=20260724-1"></script>
 </body>
 </html>
