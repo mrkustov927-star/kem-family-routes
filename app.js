@@ -586,8 +586,8 @@
     state.markers.clear();
     const routeLine = activeRouteLine();
     if (routeLine.length >= 2) {
-      L.polyline(routeLine, { color: "#fff", weight: 9, opacity: .92, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
-      L.polyline(routeLine, { color: state.routeEditMode ? "#102a43" : "#c9151e", weight: 6, opacity: 1, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
+      L.polyline(routeLine, { color: "#ffffff", weight: 13, opacity: 1, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
+      L.polyline(routeLine, { color: "#d51116", weight: 7, opacity: 1, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
     }
 
     guidedPoints.filter(point => Array.isArray(point.coordinates)).forEach(point => {
@@ -686,14 +686,14 @@
     const routeLine = activeRouteLine().map(toYandexCoordinates);
     if (routeLine.length >= 2) {
       addYandexObject(new state.yandexClasses.YMapFeature({
-        id: "kem-route-outline",
-        geometry: { type: "LineString", coordinates: routeLine },
-        style: { stroke: [{ color: "#ffffff", width: 9, opacity: .92 }] }
-      }));
-      addYandexObject(new state.yandexClasses.YMapFeature({
         id: "kem-route-line",
         geometry: { type: "LineString", coordinates: routeLine },
-        style: { stroke: [{ color: state.routeEditMode ? "#102a43" : "#c9151e", width: 6, opacity: 1 }] }
+        style: {
+          stroke: [
+            { color: "#ffffff", width: 13, opacity: 1 },
+            { color: "#d51116", width: 7, opacity: 1 }
+          ]
+        }
       }));
     }
 
