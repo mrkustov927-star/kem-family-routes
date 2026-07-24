@@ -194,9 +194,14 @@
     return [...new Map(items.map(photo => [photo.id, photo])).values()];
   }
 
+  function pointDisplayNumber(point) {
+    const shared = state.sharedPointRecords.find(record => record.id === point.id);
+    return shared?.route_order ?? point.number ?? "+";
+  }
+
   function photoPointDetails(pointId) {
     const guided = guidedPoints.find(point => point.id === pointId);
-    if (guided) return { id: guided.id, title: guided.title, number: guided.number, coordinates: guided.coordinates };
+    if (guided) return { id: guided.id, title: guided.title, number: pointDisplayNumber(guided), coordinates: guided.coordinates };
     const planned = route.plannedPoints.find(point => point.id === pointId);
     const shared = state.sharedPointRecords.find(point => point.id === pointId);
     const draft = state.edits.find(edit => edit.field === "new-point" && edit.pointId === pointId);
@@ -264,6 +269,8 @@
     const existing = guidedPoints.find(point => point.id === record.id);
     const content = record.content || {};
     const hasCoordinates = Number.isFinite(record.latitude) && Number.isFinite(record.longitude);
+    const defaultImage = content.image || existing?.defaultImage || existing?.image || "./assets/icon.svg";
+    const defaultImageAlt = content.imageAlt || existing?.defaultImageAlt || existing?.imageAlt || "Точка экскурсионного маршрута";
     return {
       id: record.id,
       number: record.route_order ?? existing?.number ?? "+",
@@ -274,8 +281,12 @@
       coordinateStatus: record.coordinate_status || existing?.coordinateStatus || "needs-check",
       coordinateNote: content.coordinateNote || existing?.coordinateNote || "Координату и место остановки нужно проверить.",
       duration: content.duration || existing?.duration || "время уточняется",
-      image: content.image || existing?.image || "./assets/icon.svg",
-      imageAlt: content.imageAlt || existing?.imageAlt || "Точка экскурсионного маршрута",
+      image: content.coverImage || defaultImage,
+      imageAlt: content.coverImageAlt || defaultImageAlt,
+      defaultImage,
+      defaultImageAlt,
+      coverImage: content.coverImage || "",
+      coverStoragePath: content.coverStoragePath || "",
       intro: content.intro || existing?.intro || "Материал по этой точке собирается участниками проекта.",
       facts: Array.isArray(content.facts) ? content.facts : existing?.facts || [],
       show: content.show || existing?.show || "Уточните место показа на местности.",
@@ -555,10 +566,11 @@
 
     guidedPoints.filter(point => Array.isArray(point.coordinates)).forEach(point => {
       const needsCheck = point.coordinateStatus === "needs-check";
+      const pointNumber = pointDisplayNumber(point);
       const marker = L.marker(point.coordinates, {
         icon: L.divIcon({
           className: "",
-          html: `<div class="map-marker ${needsCheck ? "map-marker--check" : ""}"><span>${escapeHtml(point.number)}</span></div>`,
+          html: `<div class="map-marker ${needsCheck ? "map-marker--check" : ""}"><span>${escapeHtml(pointNumber)}</span></div>`,
           iconSize: [38, 38],
           iconAnchor: [18, 38],
           popupAnchor: [0, -38]
@@ -656,10 +668,11 @@
     guidedPoints.forEach(point => {
       if (!Array.isArray(point.coordinates)) return;
       const needsCheck = point.coordinateStatus === "needs-check";
+      const pointNumber = pointDisplayNumber(point);
       addYandexMarker(
         point.coordinates,
-        `<div class="map-marker ${needsCheck ? "map-marker--check" : ""}"><span>${point.number}</span></div>`,
-        `${point.number}. ${point.shortTitle}`,
+        `<div class="map-marker ${needsCheck ? "map-marker--check" : ""}"><span>${escapeHtml(pointNumber)}</span></div>`,
+        `${pointNumber}. ${point.shortTitle}`,
         () => openPoint(point.id)
       );
     });
@@ -924,6 +937,68 @@
     const dataUrl = canvas.toDataURL("image/jpeg", .76);
     if (dataUrl.length > 1_200_000) throw new Error("После обработки снимок всё ещё слишком большой. Обрежьте его и попробуйте снова");
     return dataUrl;
+  }
+
+  async function changePointCover(pointId) {
+    if (!requireParticipant("Чтобы изменить обложку, войдите как участник")) return;
+    const point = guidedPoints.find(item => item.id === pointId);
+    const record = state.sharedPointRecords.find(item => item.id === pointId) || pointRecordForEditor(pointId);
+    if (!point || !record) {
+      showToast("Не удалось найти карточку точки");
+      return;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,image/webp";
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      showToast("Обрабатываем фотографию для обложки…");
+      try {
+        const src = await optimizePhoto(file);
+        const response = await fetch(src);
+        const blob = await response.blob();
+        const optimizedFile = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
+        const uploaded = await community.uploadPointCover({ pointId, file: optimizedFile });
+        await community.savePoint({
+          ...record,
+          content: {
+            ...(record.content || {}),
+            coverImage: uploaded.publicUrl,
+            coverImageAlt: `Фотография для обложки точки «${record.title}»`,
+            coverStoragePath: uploaded.storagePath
+          }
+        });
+        await refreshCommunityWorkspace({ quiet: true });
+        openPoint(pointId);
+        showToast("Новая обложка сохранена для всех участников");
+      } catch (error) {
+        showToast(error.message || "Не удалось изменить обложку");
+      }
+    }, { once: true });
+    input.click();
+  }
+
+  async function resetPointCover(pointId) {
+    if (!requireParticipant("Чтобы изменить обложку, войдите как участник")) return;
+    const record = state.sharedPointRecords.find(item => item.id === pointId);
+    if (!record) {
+      showToast("Не удалось найти карточку точки");
+      return;
+    }
+    const content = { ...(record.content || {}) };
+    delete content.coverImage;
+    delete content.coverImageAlt;
+    delete content.coverStoragePath;
+    try {
+      await community.savePoint({ ...record, content });
+      await refreshCommunityWorkspace({ quiet: true });
+      openPoint(pointId);
+      showToast("Исходная иллюстрация возвращена");
+    } catch (error) {
+      showToast(error.message || "Не удалось вернуть исходную обложку");
+    }
   }
 
   function deletePhotoDraft(photoId) {
@@ -1235,7 +1310,7 @@
     els.pointsList.innerHTML = visible.map(point => {
       const chapter = route.chapters.find(item => item.id === point.chapter);
       const done = state.completed.has(point.id) ? " · пройдено" : "";
-      return `<li><button class="point-card" type="button" data-point-id="${escapeHtml(point.id)}" data-status="${escapeHtml(point.coordinateStatus)}"><span class="point-card__number">${escapeHtml(point.number)}</span><strong>${escapeHtml(point.shortTitle)}</strong><small>${escapeHtml(chapter?.title || "Маршрут")} · ${escapeHtml(point.duration)}${done}</small></button></li>`;
+      return `<li><button class="point-card" type="button" data-point-id="${escapeHtml(point.id)}" data-status="${escapeHtml(point.coordinateStatus)}"><span class="point-card__number">${escapeHtml(pointDisplayNumber(point))}</span><strong>${escapeHtml(point.shortTitle)}</strong><small>${escapeHtml(chapter?.title || "Маршрут")} · ${escapeHtml(point.duration)}${done}</small></button></li>`;
     }).join("");
   }
 
@@ -1275,11 +1350,16 @@
       state.map.flyTo(point.coordinates, 16, { duration: .65 });
     }
 
+    const coverActions = userIsAuthenticated() ? `
+      <div class="dialog-visual__actions" aria-label="Обложка карточки">
+        <button class="dialog-visual__button" type="button" data-change-point-cover="${escapeHtml(point.id)}">▣ Изменить обложку</button>
+        ${point.coverImage ? `<button class="dialog-visual__button dialog-visual__button--danger" type="button" data-reset-point-cover="${escapeHtml(point.id)}">Вернуть исходную</button>` : ""}
+      </div>` : "";
     els.pointDialogContent.innerHTML = `
       ${statusBadge(point)}
       <h2>${escapeHtml(point.title)}</h2>
       <p class="lead">${escapeHtml(point.intro)}</p>
-      <div class="dialog-visual"><img src="${escapeHtml(point.image)}" alt="${escapeHtml(point.imageAlt)}"></div>
+      <div class="dialog-visual${point.coverImage ? " dialog-visual--custom" : ""}"><img src="${escapeHtml(point.image)}" alt="${escapeHtml(point.imageAlt)}">${coverActions}</div>
       <h3>Короткие факты</h3>
       <ul class="fact-list">${point.facts.map(fact => `<li>${escapeHtml(fact)}</li>`).join("")}</ul>
       <h3>Что показать</h3><p>${escapeHtml(point.show)}</p>
@@ -1291,7 +1371,7 @@
         <button class="button button--ghost" type="button" data-edit-point="${point.id}">${userIsAuthenticated() ? "Редактировать точку" : "Предложить правку"}</button>
         <button class="button button--primary" type="button" data-complete-point="${point.id}">${state.completed.has(point.id) ? "Отметить непройденной" : "Точка пройдена"}</button>
       </div>`;
-    els.pointDialog.showModal();
+    if (!els.pointDialog.open) els.pointDialog.showModal();
   }
 
   function renderAuthState() {
@@ -1563,6 +1643,8 @@
     const photoButton = event.target.closest("[data-photo-id]");
     const addPhotoButton = event.target.closest("[data-add-photo-point]");
     const deletePhotoButton = event.target.closest("[data-delete-photo-draft]");
+    const changeCoverButton = event.target.closest("[data-change-point-cover]");
+    const resetCoverButton = event.target.closest("[data-reset-point-cover]");
     const mapProviderButton = event.target.closest("[data-map-provider]");
 
     if (pointCard) {
@@ -1589,6 +1671,8 @@
     if (photoButton) openPhoto(photoButton.dataset.photoId);
     if (addPhotoButton) openPhotoUpload(addPhotoButton.dataset.addPhotoPoint);
     if (deletePhotoButton && window.confirm("Удалить этот черновик фотографии?")) deletePhotoDraft(deletePhotoButton.dataset.deletePhotoDraft);
+    if (changeCoverButton) changePointCover(changeCoverButton.dataset.changePointCover);
+    if (resetCoverButton && window.confirm("Вернуть исходную иллюстрацию этой карточки?")) resetPointCover(resetCoverButton.dataset.resetPointCover);
     if (mapProviderButton) setMapProvider(mapProviderButton.dataset.mapProvider);
   });
 
