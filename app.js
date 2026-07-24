@@ -111,6 +111,7 @@
     authDialog: document.querySelector("#authDialog"),
     authForm: document.querySelector("#authForm"),
     authSignedOut: document.querySelector("#authSignedOut"),
+    authRecovery: document.querySelector("#authRecovery"),
     authSignedIn: document.querySelector("#authSignedIn"),
     sharedPointDialog: document.querySelector("#sharedPointDialog"),
     sharedPointForm: document.querySelector("#sharedPointForm"),
@@ -1262,9 +1263,15 @@
   function renderAuthState() {
     const auth = state.community || {};
     const authenticated = Boolean(auth.authenticated);
-    els.authSignedOut.hidden = authenticated;
-    els.authSignedIn.hidden = !authenticated;
+    const passwordRecovery = Boolean(auth.passwordRecovery);
+    els.authSignedOut.hidden = authenticated || passwordRecovery;
+    els.authRecovery.hidden = !passwordRecovery;
+    els.authSignedIn.hidden = !authenticated || passwordRecovery;
     els.accountButton.classList.toggle("is-authenticated", authenticated);
+    if (passwordRecovery) {
+      els.accountButton.textContent = "Новый пароль";
+      return;
+    }
     if (!authenticated) {
       els.accountButton.textContent = "Войти";
       return;
@@ -1475,6 +1482,11 @@
         renderAuthState();
         renderPlan();
         refreshCommunityWorkspace({ seed: payload.authenticated, quiet: true });
+      } else if (event === "password-recovery") {
+        state.community = payload;
+        renderAuthState();
+        if (!els.authDialog.open) els.authDialog.showModal();
+        showToast("Ссылка подтверждена. Установите новый пароль");
       } else if (event === "workspace") {
         scheduleWorkspaceRefresh();
       } else if (event === "error") {
@@ -1613,6 +1625,55 @@
       showToast("Ссылка для входа отправлена на почту");
     } catch (error) {
       showToast(error.message || "Не удалось отправить ссылку");
+    }
+  });
+  document.querySelector("#resetPasswordButton").addEventListener("click", async () => {
+    const email = document.querySelector("#authEmail").value.trim();
+    if (!email) {
+      showToast("Сначала укажите электронную почту");
+      document.querySelector("#authEmail").focus();
+      return;
+    }
+    const button = document.querySelector("#resetPasswordButton");
+    button.disabled = true;
+    button.textContent = "Отправляем…";
+    try {
+      await community.requestPasswordReset(email);
+      showToast("Письмо для восстановления отправлено");
+    } catch (error) {
+      showToast(error.message || "Не удалось отправить письмо");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Забыли пароль?";
+    }
+  });
+  document.querySelector("#saveNewPasswordButton").addEventListener("click", async () => {
+    const password = document.querySelector("#newAuthPassword").value;
+    const confirmation = document.querySelector("#confirmAuthPassword").value;
+    if (password.length < 8) {
+      showToast("Новый пароль должен содержать не менее 8 символов");
+      return;
+    }
+    if (password !== confirmation) {
+      showToast("Пароли не совпадают");
+      return;
+    }
+    const button = document.querySelector("#saveNewPasswordButton");
+    button.disabled = true;
+    button.textContent = "Сохраняем…";
+    try {
+      await community.updatePassword(password);
+      state.community = community.current();
+      document.querySelector("#newAuthPassword").value = "";
+      document.querySelector("#confirmAuthPassword").value = "";
+      renderAuthState();
+      els.authDialog.close();
+      showToast("Пароль изменён. Вы вошли в свою учётную запись");
+    } catch (error) {
+      showToast(error.message || "Не удалось изменить пароль");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Сохранить новый пароль";
     }
   });
   document.querySelector("#signOutButton").addEventListener("click", async () => {
