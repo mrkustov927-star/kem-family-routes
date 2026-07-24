@@ -199,12 +199,16 @@
     return shared?.route_order ?? point.number ?? "+";
   }
 
-  function namedPointMarkerHtml(title, order = "+") {
-    return `<div class="custom-point-marker"><span class="custom-point-marker__label">${escapeHtml(title || "Новая точка")}</span><span class="custom-point-marker__pin"><i>${escapeHtml(order || "+")}</i></span></div>`;
+  function namedPointMarkerHtml(title, order = "+", variant = "shared") {
+    return `<div class="custom-point-marker custom-point-marker--${escapeHtml(variant)}"><span class="custom-point-marker__label">${escapeHtml(title || "Новая точка")}</span><span class="custom-point-marker__pin"><i>${escapeHtml(order || "+")}</i></span></div>`;
   }
 
   function sharedPointMarkerHtml(record) {
-    return namedPointMarkerHtml(record.short_title || record.title, record.route_order);
+    return namedPointMarkerHtml(record.short_title || record.title, record.route_order, "shared");
+  }
+
+  function guidedPointMarkerHtml(point, needsCheck = false) {
+    return namedPointMarkerHtml(point.shortTitle || point.title, pointDisplayNumber(point), needsCheck ? "check" : "route");
   }
 
   function photoPointDetails(pointId) {
@@ -361,9 +365,23 @@
     }
   }
 
+  function validRouteCoordinates(coordinates) {
+    return (Array.isArray(coordinates) ? coordinates : []).filter(coordinate =>
+      Array.isArray(coordinate)
+      && coordinate.length >= 2
+      && Number.isFinite(Number(coordinate[0]))
+      && Number.isFinite(Number(coordinate[1]))
+    ).map(coordinate => [Number(coordinate[0]), Number(coordinate[1])]);
+  }
+
   function activeRouteLine() {
-    if (state.routeEditMode) return state.routeDraft;
-    return state.routeCoordinates;
+    if (state.routeEditMode) return validRouteCoordinates(state.routeDraft);
+    const savedRoute = validRouteCoordinates(state.routeCoordinates);
+    if (savedRoute.length >= 2) return savedRoute;
+    return guidedPoints
+      .filter(point => Array.isArray(point.coordinates))
+      .sort((a, b) => Number(pointDisplayNumber(a) || 9999) - Number(pointDisplayNumber(b) || 9999))
+      .map(point => point.coordinates);
   }
 
   function routeLengthMeters(coordinates) {
@@ -569,7 +587,7 @@
     const routeLine = activeRouteLine();
     if (routeLine.length >= 2) {
       L.polyline(routeLine, { color: "#fff", weight: 9, opacity: .92, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
-      L.polyline(routeLine, { color: state.routeEditMode ? "#102a43" : "#e21f26", weight: 5, opacity: .94, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
+      L.polyline(routeLine, { color: state.routeEditMode ? "#102a43" : "#c9151e", weight: 6, opacity: 1, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
     }
 
     guidedPoints.filter(point => Array.isArray(point.coordinates)).forEach(point => {
@@ -578,10 +596,10 @@
       const marker = L.marker(point.coordinates, {
         icon: L.divIcon({
           className: "",
-          html: `<div class="map-marker ${needsCheck ? "map-marker--check" : ""}"><span>${escapeHtml(pointNumber)}</span></div>`,
-          iconSize: [38, 38],
-          iconAnchor: [18, 38],
-          popupAnchor: [0, -38]
+          html: guidedPointMarkerHtml(point, needsCheck),
+          iconSize: [220, 64],
+          iconAnchor: [110, 60],
+          popupAnchor: [0, -58]
         })
       }).addTo(state.routeLayer);
       marker.bindPopup(`<strong>${escapeHtml(point.shortTitle)}</strong><br><small>${needsCheck ? "Координату проверить" : "Координата проверена"}</small><br><button class="popup-button" onclick="window.openKemPoint('${point.id}')">Открыть подсказку →</button>`);
@@ -675,7 +693,7 @@
       addYandexObject(new state.yandexClasses.YMapFeature({
         id: "kem-route-line",
         geometry: { type: "LineString", coordinates: routeLine },
-        style: { stroke: [{ color: state.routeEditMode ? "#102a43" : "#e21f26", width: 5, opacity: .94 }] }
+        style: { stroke: [{ color: state.routeEditMode ? "#102a43" : "#c9151e", width: 6, opacity: 1 }] }
       }));
     }
 
@@ -685,7 +703,7 @@
       const pointNumber = pointDisplayNumber(point);
       addYandexMarker(
         point.coordinates,
-        `<div class="map-marker ${needsCheck ? "map-marker--check" : ""}"><span>${escapeHtml(pointNumber)}</span></div>`,
+        guidedPointMarkerHtml(point, needsCheck),
         `${pointNumber}. ${point.shortTitle}`,
         () => openPoint(point.id)
       );
