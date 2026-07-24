@@ -36,7 +36,26 @@
     point.researchRevision = researchLibrary.revision;
   });
 
-  const guidedPoints = [...route.points].map(applyCuratedPoint).sort((a, b) => a.number - b.number);
+  const staticPointsById = new Map(route.points.map(point => [point.id, point]));
+  const guidedPoints = route.plannedPoints.map(planned => {
+    const staticPoint = staticPointsById.get(planned.id);
+    if (staticPoint) return applyCuratedPoint(staticPoint);
+    const curated = researchById.get(planned.id);
+    if (!curated) return null;
+    return applyCuratedPoint({
+      id: planned.id,
+      number: planned.number,
+      chapter: planned.chapter,
+      title: planned.title,
+      shortTitle: planned.title,
+      coordinates: null,
+      coordinateStatus: "needs-check",
+      coordinateNote: "Координата берётся из общей карты. До полевой проверки используйте карточку как справочный материал.",
+      duration: "6–8 минут",
+      image: "./assets/icon.svg",
+      imageAlt: `Точка маршрута «${planned.title}»`
+    });
+  }).filter(Boolean).sort((a, b) => a.number - b.number);
   const STORAGE_PROGRESS = "kem-route-progress-v1";
   const STORAGE_EDITS = "kem-route-edits-v1";
   const STORAGE_ROUTE_ISSUES = "kem-route-issues-v1";
@@ -517,7 +536,7 @@
   function initMap() {
     const routeLine = routeGeometry?.coordinates?.length
       ? routeGeometry.coordinates
-      : guidedPoints.map(point => point.coordinates);
+      : guidedPoints.map(point => point.coordinates).filter(coordinates => Array.isArray(coordinates));
     state.routeCoordinates = routeLine;
 
     updateRouteSummary();
@@ -1465,9 +1484,14 @@
       state.map.setView(event.latlng, 16);
       state.userMarker?.openPopup();
     }
-    const nearest = guidedPoints.map(point => ({ point, distance: distanceMeters(state.userLocation, point.coordinates) })).sort((a, b) => a.distance - b.distance)[0];
-    const distanceText = nearest.distance < 1000 ? `${Math.round(nearest.distance)} м` : `${(nearest.distance / 1000).toFixed(1)} км`;
-    showToast(`Ближайшая готовая точка — «${nearest.point.shortTitle}», ${distanceText}`);
+    const nearest = guidedPoints
+      .filter(point => Array.isArray(point.coordinates))
+      .map(point => ({ point, distance: distanceMeters(state.userLocation, point.coordinates) }))
+      .sort((a, b) => a.distance - b.distance)[0];
+    if (nearest) {
+      const distanceText = nearest.distance < 1000 ? `${Math.round(nearest.distance)} м` : `${(nearest.distance / 1000).toFixed(1)} км`;
+      showToast(`Ближайшая готовая точка — «${nearest.point.shortTitle}», ${distanceText}`);
+    }
   }
 
   function distanceMeters(from, to) {
