@@ -349,9 +349,12 @@
       <label>Вопрос семье<textarea id="sharedPointFamilyQuestion" name="familyQuestion" rows="3"></textarea></label>
       <label>Безопасность<textarea id="sharedPointSafety" name="safety" rows="3"></textarea></label>
       <label>Источники — строка в формате «Название | ссылка»<textarea id="sharedPointSources" name="sources" rows="4" placeholder="Музей «Поморье» | https://example.ru"></textarea></label>
-      <div class="dialog-actions">
-        <button class="button button--ghost" type="button" data-close-dialog="sharedPointDialog">Отмена</button>
-        <button class="button button--primary" id="sharedPointSaveButton" type="submit">Сохранить для всех</button>
+      <div class="dialog-actions dialog-actions--split">
+        <button class="text-button text-button--danger" id="sharedPointDeleteButton" type="button" hidden>Удалить точку</button>
+        <div class="dialog-actions">
+          <button class="button button--ghost" type="button" data-close-dialog="sharedPointDialog">Отмена</button>
+          <button class="button button--primary" id="sharedPointSaveButton" type="submit">Сохранить для всех</button>
+        </div>
       </div>
     </form>
   </dialog>
@@ -369,7 +372,7 @@
   <script src="./photos.js"></script>
   <script src="./route-geometry.js"></script>
   <script src="./supabase-config.js?v=20260718-2"></script>
-  <script src="./community.js?v=20260724-4"></script>
-  <script src="./app.js?v=20260724-9"></script>
+  <script src="./community.js?v=20260724-5"></script>
+  <script src="./app.js?v=20260724-10"></script>
 </body>
 </html>

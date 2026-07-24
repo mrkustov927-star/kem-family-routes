@@ -194,6 +194,19 @@
     return [...new Map(items.map(photo => [photo.id, photo])).values()];
   }
 
+  function userRole() {
+    return state.community?.profile?.role || "participant";
+  }
+
+  function canDeleteSharedPhoto(photo) {
+    return Boolean(photo?.isShared && userIsAuthenticated() &&
+      (photo.createdBy === state.community?.user?.id || ["moderator", "admin"].includes(userRole())));
+  }
+
+  function canDeleteSharedPoint() {
+    return userIsAuthenticated() && userRole() === "admin";
+  }
+
   function pointDisplayNumber(point) {
     const shared = state.sharedPointRecords.find(record => record.id === point.id);
     return shared?.route_order ?? point.number ?? "+";
@@ -313,7 +326,17 @@
   }
 
   function applySharedWorkspace(workspace) {
-    state.sharedPointRecords = workspace.points || [];
+    const workspacePoints = workspace.points || [];
+    const archivedPointIds = new Set(workspacePoints.filter(point => point.status === "archived").map(point => point.id));
+    state.sharedPointRecords = workspacePoints.filter(point => point.status !== "archived");
+    if (archivedPointIds.size) {
+      for (let index = route.plannedPoints.length - 1; index >= 0; index -= 1) {
+        if (archivedPointIds.has(route.plannedPoints[index].id)) route.plannedPoints.splice(index, 1);
+      }
+      for (let index = guidedPoints.length - 1; index >= 0; index -= 1) {
+        if (archivedPointIds.has(guidedPoints[index].id)) guidedPoints.splice(index, 1);
+      }
+    }
     state.sharedPhotos = (workspace.photos || []).map(photo => ({
       id: photo.id,
       pointId: photo.point_id,
@@ -328,6 +351,8 @@
       rightsStatus: photo.rights_status || "Ожидает редакторской проверки",
       status: photo.status,
       isDraft: photo.status !== "published",
+      storagePath: photo.storage_path,
+      createdBy: photo.created_by,
       isShared: true
     }));
 
@@ -345,7 +370,7 @@
       else route.plannedPoints.push(plannedData);
       const guided = guidedPoints.find(point => point.id === record.id);
       if (guided) Object.assign(guided, display);
-      else if (display.coordinates && (record.status === "published" || display.intro !== "Материал по этой точке собирается участниками проекта.")) guidedPoints.push(display);
+      else if (display.coordinates) guidedPoints.push(display);
     });
     route.plannedPoints.sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
     guidedPoints.sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
@@ -884,8 +909,11 @@
   function openPhoto(photoId) {
     const photo = allPhotos().find(item => item.id === photoId);
     if (!photo) return;
-    const draftAction = photo.isShared && photo.isDraft
-      ? "<p class=\"muted\">Общий фоточерновик ожидает редакторской проверки.</p>"
+    const sharedDeleteAction = canDeleteSharedPhoto(photo)
+      ? `<p><button class="text-button text-button--danger" type="button" data-delete-shared-photo="${escapeHtml(photo.id)}">Удалить фотографию из галереи</button></p>`
+      : "";
+    const draftAction = photo.isShared
+      ? `${photo.isDraft ? '<p class="muted">Общий фоточерновик ожидает редакторской проверки.</p>' : ""}${sharedDeleteAction}`
       : photo.isDraft
         ? `<p><button class="text-button text-button--danger" type="button" data-delete-photo-draft="${photo.id}">Удалить этот черновик</button></p>`
         : `<p><button class="text-button" type="button" data-edit-point="${photo.pointId}">Уточнить подпись или автора →</button></p>`;
@@ -1041,6 +1069,28 @@
     renderYandexObjects();
     if (els.photoDialog.open) els.photoDialog.close();
     showToast("Черновик фотографии удалён");
+  }
+
+  async function deleteSharedPhoto(photoId) {
+    try {
+      await community.deletePhoto(photoId);
+      if (els.photoDialog.open) els.photoDialog.close();
+      await refreshCommunityWorkspace({ quiet: true });
+      showToast("Фотография удалена из общей галереи");
+    } catch (error) {
+      showToast(error.message || "Не удалось удалить фотографию");
+    }
+  }
+
+  async function archiveSharedPoint(pointId) {
+    try {
+      await community.archivePoint(pointId);
+      if (els.sharedPointDialog.open) els.sharedPointDialog.close();
+      await refreshCommunityWorkspace({ quiet: true });
+      showToast("Точка удалена из маршрута");
+    } catch (error) {
+      showToast(error.message || "Не удалось удалить точку");
+    }
   }
 
   function setCoordinateMode(enabled) {
@@ -1531,6 +1581,9 @@
     document.querySelector("#sharedPointFamilyQuestion").value = content.familyQuestion || "";
     document.querySelector("#sharedPointSafety").value = content.safety || "";
     document.querySelector("#sharedPointSources").value = formatSources(content.sources);
+    const deleteButton = document.querySelector("#sharedPointDeleteButton");
+    deleteButton.hidden = !canDeleteSharedPoint();
+    deleteButton.dataset.deleteSharedPoint = point.id;
     els.sharedPointDialog.showModal();
   }
 
@@ -1705,6 +1758,8 @@
     const photoButton = event.target.closest("[data-photo-id]");
     const addPhotoButton = event.target.closest("[data-add-photo-point]");
     const deletePhotoButton = event.target.closest("[data-delete-photo-draft]");
+    const deleteSharedPhotoButton = event.target.closest("[data-delete-shared-photo]");
+    const deleteSharedPointButton = event.target.closest("[data-delete-shared-point]");
     const changeCoverButton = event.target.closest("[data-change-point-cover]");
     const resetCoverButton = event.target.closest("[data-reset-point-cover]");
     const mapProviderButton = event.target.closest("[data-map-provider]");
@@ -1733,6 +1788,8 @@
     if (photoButton) openPhoto(photoButton.dataset.photoId);
     if (addPhotoButton) openPhotoUpload(addPhotoButton.dataset.addPhotoPoint);
     if (deletePhotoButton && window.confirm("Удалить этот черновик фотографии?")) deletePhotoDraft(deletePhotoButton.dataset.deletePhotoDraft);
+    if (deleteSharedPhotoButton && window.confirm("Удалить эту фотографию из общей галереи?")) deleteSharedPhoto(deleteSharedPhotoButton.dataset.deleteSharedPhoto);
+    if (deleteSharedPointButton && window.confirm("Удалить эту точку из маршрута для всех участников?")) archiveSharedPoint(deleteSharedPointButton.dataset.deleteSharedPoint);
     if (changeCoverButton) changePointCover(changeCoverButton.dataset.changePointCover);
     if (resetCoverButton && window.confirm("Вернуть исходную иллюстрацию этой карточки?")) resetPointCover(resetCoverButton.dataset.resetPointCover);
     if (mapProviderButton) setMapProvider(mapProviderButton.dataset.mapProvider);

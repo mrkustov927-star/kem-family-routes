@@ -148,8 +148,22 @@
 
   async function updateDisplayName(displayName) {
     if (!client || !user) throw new Error("Сначала войдите");
-    const { error } = await client.from("profiles").upsert({ id: user.id, display_name: displayName, role: profile?.role || "participant" }, { onConflict: "id" });
+    const cleanName = String(displayName || "").trim();
+    if (!cleanName) throw new Error("Введите имя участника");
+    let { data, error } = await client
+      .from("profiles")
+      .update({ display_name: cleanName })
+      .eq("id", user.id)
+      .select("id")
+      .maybeSingle();
+    if (!error && !data) {
+      const inserted = await client.from("profiles").insert({ id: user.id, display_name: cleanName }).select("id").single();
+      data = inserted.data;
+      error = inserted.error;
+    }
     if (error) throw normalizeError(error, "Не удалось сохранить имя");
+    const { error: metadataError } = await client.auth.updateUser({ data: { display_name: cleanName } });
+    if (metadataError) console.warn("Profile metadata was not updated", metadataError);
     await loadProfile();
     emit("auth", current());
   }
@@ -219,6 +233,33 @@
     const { data, error } = result;
     if (error) throw normalizeError(error, "Не удалось сохранить точку");
     return data;
+  }
+
+  async function archivePoint(pointId) {
+    if (!client || !user) throw new Error("Для удаления точки нужно войти");
+    if (profile?.role !== "admin") throw new Error("Удалять точки может только администратор");
+    const { error } = await client.from("points")
+      .update({ status: "archived", updated_by: user.id })
+      .eq("id", pointId).select("id").single();
+    if (error) throw normalizeError(error, "Не удалось удалить точку");
+    const { error: photosError } = await client.from("photos")
+      .update({ status: "archived", updated_by: user.id }).eq("point_id", pointId);
+    if (photosError) console.warn("Point photos were not archived", photosError);
+  }
+
+  async function deletePhoto(photoId) {
+    if (!client || !user) throw new Error("Для удаления фотографии нужно войти");
+    const { data: photo, error: lookupError } = await client.from("photos")
+      .select("id, storage_path, created_by").eq("id", photoId).single();
+    if (lookupError) throw normalizeError(lookupError, "Фотография не найдена");
+    const allowed = photo.created_by === user.id || ["moderator", "admin"].includes(profile?.role);
+    if (!allowed) throw new Error("Удалить фотографию может её автор, редактор или администратор");
+    const { error } = await client.from("photos").delete().eq("id", photoId);
+    if (error) throw normalizeError(error, "Не удалось удалить фотографию");
+    if (photo.storage_path) {
+      const { error: storageError } = await client.storage.from("point-photos").remove([photo.storage_path]);
+      if (storageError) console.warn("Deleted photo file could not be removed", storageError);
+    }
   }
 
   async function uploadPhoto({ pointId, file, title, caption, shotDate, author, source, rightsStatus }) {
@@ -299,6 +340,8 @@
     fetchWorkspace,
     seedPoints,
     savePoint,
+    archivePoint,
+    deletePhoto,
     uploadPhoto,
     uploadPointCover,
     saveRouteWaypoints,
