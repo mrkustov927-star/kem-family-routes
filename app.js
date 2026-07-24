@@ -5,7 +5,38 @@
   const photos = window.KEM_PHOTOS || [];
   const routeGeometry = window.KEM_ROUTE_GEOMETRY || null;
   const community = window.KemCommunity || null;
-  const guidedPoints = [...route.points].sort((a, b) => a.number - b.number);
+  const researchLibrary = window.KEM_RESEARCH_CARDS || { revision: "", cards: [] };
+  const researchById = new Map((researchLibrary.cards || []).map(card => [card.id, card]));
+
+  function applyCuratedPoint(point) {
+    const curated = researchById.get(point.id);
+    if (!curated) return point;
+    return {
+      ...point,
+      title: curated.title || point.title,
+      intro: curated.intro,
+      facts: curated.facts,
+      show: curated.show,
+      guideText: curated.guideText,
+      familyQuestion: curated.familyQuestion,
+      safety: curated.safety,
+      sources: curated.sources,
+      researchPeriod: curated.period,
+      researchConfidence: curated.confidence,
+      localCheck: curated.localCheck,
+      researchRevision: researchLibrary.revision
+    };
+  }
+
+  route.plannedPoints.forEach(point => {
+    const curated = researchById.get(point.id);
+    if (!curated) return;
+    point.status = "ready";
+    point.summary = curated.intro;
+    point.researchRevision = researchLibrary.revision;
+  });
+
+  const guidedPoints = [...route.points].map(applyCuratedPoint).sort((a, b) => a.number - b.number);
   const STORAGE_PROGRESS = "kem-route-progress-v1";
   const STORAGE_EDITS = "kem-route-edits-v1";
   const STORAGE_ROUTE_ISSUES = "kem-route-issues-v1";
@@ -262,24 +293,42 @@
     return false;
   }
 
+  function curatedContentPayload(curated) {
+    if (!curated) return {};
+    return {
+      researchRevision: researchLibrary.revision,
+      intro: curated.intro,
+      facts: curated.facts,
+      show: curated.show,
+      guideText: curated.guideText,
+      familyQuestion: curated.familyQuestion,
+      safety: curated.safety,
+      sources: curated.sources
+    };
+  }
+
   function pointSeedRecords() {
     return route.plannedPoints.map(planned => {
       const detail = guidedPoints.find(point => point.id === planned.id);
+      const curated = researchById.get(planned.id);
       return {
         id: planned.id,
         route_order: planned.number,
         chapter: planned.chapter,
-        title: detail?.title || planned.title,
+        title: detail?.title || curated?.title || planned.title,
         short_title: detail?.shortTitle || planned.title,
         latitude: detail?.coordinates?.[0] ?? null,
         longitude: detail?.coordinates?.[1] ?? null,
         coordinate_status: detail?.coordinateStatus || "needs-check",
-        status: detail ? "published" : "research",
+        status: detail || curated ? "published" : "research",
         content: detail ? {
           duration: detail.duration,
           coordinateNote: detail.coordinateNote,
-          image: detail.image,
-          imageAlt: detail.imageAlt,
+          image: detail.defaultImage || detail.image,
+          imageAlt: detail.defaultImageAlt || detail.imageAlt,
+          coverImage: detail.coverImage || "",
+          coverStoragePath: detail.coverStoragePath || "",
+          ...curatedContentPayload(curated),
           intro: detail.intro,
           facts: detail.facts,
           show: detail.show,
@@ -287,40 +336,59 @@
           familyQuestion: detail.familyQuestion,
           safety: detail.safety,
           sources: detail.sources
-        } : {}
+        } : curatedContentPayload(curated)
       };
     });
   }
 
   function sharedPointToDisplay(record) {
     const existing = guidedPoints.find(point => point.id === record.id);
+    const curated = researchById.get(record.id);
     const content = record.content || {};
+    const remoteIsCurrent = !curated || content.researchRevision === researchLibrary.revision;
+    const hasContentField = field => Object.prototype.hasOwnProperty.call(content, field);
+    const textValue = (field, fallback) => {
+      if (remoteIsCurrent && hasContentField(field)) return String(content[field] ?? "");
+      if (curated && curated[field] !== undefined) return curated[field];
+      if (hasContentField(field)) return String(content[field] ?? "");
+      return existing?.[field] ?? fallback;
+    };
+    const listValue = (field, fallback = []) => {
+      if (remoteIsCurrent && Array.isArray(content[field])) return content[field];
+      if (curated && Array.isArray(curated[field])) return curated[field];
+      if (Array.isArray(content[field])) return content[field];
+      return Array.isArray(existing?.[field]) ? existing[field] : fallback;
+    };
     const hasCoordinates = Number.isFinite(record.latitude) && Number.isFinite(record.longitude);
     const defaultImage = content.image || existing?.defaultImage || existing?.image || "./assets/icon.svg";
     const defaultImageAlt = content.imageAlt || existing?.defaultImageAlt || existing?.imageAlt || "Точка экскурсионного маршрута";
     return {
       id: record.id,
       number: record.route_order ?? existing?.number ?? "+",
-      chapter: record.chapter || existing?.chapter || "railway",
-      title: record.title || existing?.title || "Новая точка",
+      chapter: record.chapter || existing?.chapter || curated?.chapter || "railway",
+      title: record.title || existing?.title || curated?.title || "Новая точка",
       shortTitle: record.short_title || existing?.shortTitle || record.title,
       coordinates: hasCoordinates ? [record.latitude, record.longitude] : existing?.coordinates || null,
       coordinateStatus: record.coordinate_status || existing?.coordinateStatus || "needs-check",
       coordinateNote: content.coordinateNote || existing?.coordinateNote || "Координату и место остановки нужно проверить.",
-      duration: content.duration || existing?.duration || "время уточняется",
+      duration: content.duration || existing?.duration || "6–8 минут",
       image: content.coverImage || defaultImage,
       imageAlt: content.coverImageAlt || defaultImageAlt,
       defaultImage,
       defaultImageAlt,
       coverImage: content.coverImage || "",
       coverStoragePath: content.coverStoragePath || "",
-      intro: content.intro || existing?.intro || "Материал по этой точке собирается участниками проекта.",
-      facts: Array.isArray(content.facts) ? content.facts : existing?.facts || [],
-      show: content.show || existing?.show || "Уточните место показа на местности.",
-      guideText: content.guideText || existing?.guideText || "Добавьте проверенный рассказ экскурсовода.",
-      familyQuestion: content.familyQuestion || existing?.familyQuestion || "Что в этом месте кажется вам самым важным?",
-      safety: content.safety || existing?.safety || "Выберите безопасное место остановки группы.",
-      sources: Array.isArray(content.sources) ? content.sources : existing?.sources || [],
+      intro: textValue("intro", "Материал по этой точке собирается участниками проекта."),
+      facts: listValue("facts"),
+      show: textValue("show", "Уточните место показа на местности."),
+      guideText: textValue("guideText", "Добавьте проверенный рассказ экскурсовода."),
+      familyQuestion: textValue("familyQuestion", "Что в этом месте кажется вам самым важным?"),
+      safety: textValue("safety", "Выберите безопасное место остановки группы."),
+      sources: listValue("sources"),
+      researchPeriod: curated?.period || "",
+      researchConfidence: curated?.confidence || "",
+      localCheck: curated?.localCheck || "",
+      researchRevision: curated ? researchLibrary.revision : content.researchRevision || "",
       sharedStatus: record.status,
       createdBy: record.created_by,
       isShared: true
@@ -361,12 +429,14 @@
     state.sharedPointRecords.forEach(record => {
       const display = sharedPointToDisplay(record);
       const planned = route.plannedPoints.find(point => point.id === record.id);
+      const curated = researchById.get(record.id);
       const plannedData = {
         number: display.number,
         id: display.id,
         title: display.title,
         chapter: display.chapter,
-        status: record.status === "published" ? "ready" : "research"
+        status: curated || record.status === "published" ? "ready" : "research",
+        summary: curated?.intro || display.intro || ""
       };
       if (planned) Object.assign(planned, plannedData);
       else route.plannedPoints.push(plannedData);
@@ -899,20 +969,25 @@
 
   function renderPlan() {
     const total = route.plannedPoints.length;
-    const ready = route.plannedPoints.filter(point => point.status === "ready").length;
+    const ready = route.plannedPoints.filter(point => researchById.has(point.id) || point.status === "ready").length;
     els.routePlanTitle.textContent = `${total} ${russianPlural(total, "тема", "темы", "тем")} большого маршрута`;
     els.readyCount.textContent = ready;
     els.readyLabel.textContent = ready === 1 ? "карточка готова" : `${russianPlural(ready, "карточка", "карточки", "карточек")} готовы`;
     els.readinessBar.style.width = `${total ? (ready / total) * 100 : 0}%`;
     const visible = state.planFilter === "all" ? route.plannedPoints : route.plannedPoints.filter(point => point.chapter === state.planFilter);
     els.planGrid.innerHTML = visible.map(point => {
-      const isReady = point.status === "ready";
+      const curated = researchById.get(point.id);
+      const guided = guidedPoints.find(item => item.id === point.id);
+      const isReady = Boolean(curated) || point.status === "ready";
+      const canOpen = Boolean(guided);
+      const summary = curated?.intro || point.summary || guided?.intro || "";
       const photo = allPhotos().find(item => item.pointId === point.id);
-      const action = isReady ? `<button class="plan-action" type="button" data-open-plan="${point.id}">Открыть карточку →</button>` : "";
+      const action = canOpen ? `<button class="plan-action" type="button" data-open-plan="${point.id}">Открыть карточку →</button>` : "";
       const editAction = `<button class="plan-action" type="button" data-edit-point="${point.id}">${userIsAuthenticated() ? "✎ Редактировать" : "Добавить материал →"}</button>`;
       const photoAction = photo ? `<button class="plan-action" type="button" data-photo-id="${photo.id}">▣ Есть фото</button>` : "";
       const addPhotoAction = `<button class="plan-action" type="button" data-add-photo-point="${point.id}">＋ Фото</button>`;
-      return `<li class="plan-item ${isReady ? "plan-item--ready" : ""}"><span class="plan-item__number">${point.number}</span><div><h3>${escapeHtml(point.title)}</h3><div class="plan-item__meta"><span class="plan-status">${isReady ? "✓ карточка готова" : "○ исследуем"}</span>${photoAction}${addPhotoAction}${action}${editAction}</div></div></li>`;
+      const statusText = curated ? "✓ исторический материал подготовлен" : isReady ? "✓ карточка готова" : "○ исследуем";
+      return `<li class="plan-item ${isReady ? "plan-item--ready" : ""}"><span class="plan-item__number">${point.number}</span><div><h3>${escapeHtml(point.title)}</h3>${summary ? `<p class="plan-item__summary">${escapeHtml(summary)}</p>` : ""}<div class="plan-item__meta"><span class="plan-status">${statusText}</span>${photoAction}${addPhotoAction}${action}${editAction}</div></div></li>`;
     }).join("");
   }
 
@@ -1445,10 +1520,12 @@
     if (!point) return;
     state.currentPointIndex = guidedPoints.indexOf(point);
     highlightPoint(pointId);
-    if (state.mapProvider === "yandex" && state.yandexReady) {
-      state.yandexMap.update({ location: { center: toYandexCoordinates(point.coordinates), zoom: 16, duration: 650 } });
-    } else if (state.map) {
-      state.map.flyTo(point.coordinates, 16, { duration: .65 });
+    if (Array.isArray(point.coordinates)) {
+      if (state.mapProvider === "yandex" && state.yandexReady) {
+        state.yandexMap.update({ location: { center: toYandexCoordinates(point.coordinates), zoom: 16, duration: 650 } });
+      } else if (state.map) {
+        state.map.flyTo(point.coordinates, 16, { duration: .65 });
+      }
     }
 
     const coverActions = userIsAuthenticated() ? `
@@ -1456,17 +1533,22 @@
         <button class="dialog-visual__button" type="button" data-change-point-cover="${escapeHtml(point.id)}">▣ Изменить обложку</button>
         ${point.coverImage ? `<button class="dialog-visual__button dialog-visual__button--danger" type="button" data-reset-point-cover="${escapeHtml(point.id)}">Вернуть исходную</button>` : ""}
       </div>` : "";
+    const researchMeta = point.researchPeriod || point.researchConfidence
+      ? `<p class="point-research-meta">${point.researchPeriod ? `<span><strong>Период:</strong> ${escapeHtml(point.researchPeriod)}</span>` : ""}${point.researchConfidence ? `<span><strong>Проверка:</strong> уровень ${escapeHtml(point.researchConfidence)}</span>` : ""}</p>`
+      : "";
     els.pointDialogContent.innerHTML = `
       ${statusBadge(point)}
       <h2>${escapeHtml(point.title)}</h2>
+      ${researchMeta}
       <p class="lead">${escapeHtml(point.intro)}</p>
       <div class="dialog-visual${point.coverImage ? " dialog-visual--custom" : ""}"><img src="${escapeHtml(point.image)}" alt="${escapeHtml(point.imageAlt)}">${coverActions}</div>
       <h3>Короткие факты</h3>
       <ul class="fact-list">${point.facts.map(fact => `<li>${escapeHtml(fact)}</li>`).join("")}</ul>
+      <h3>Рассказ юного экскурсовода</h3><p class="guide-script">${escapeHtml(point.guideText)}</p>
       <h3>Что показать</h3><p>${escapeHtml(point.show)}</p>
       <h3>Вопрос семье</h3><p>${escapeHtml(point.familyQuestion)}</p>
       <h3>Важно</h3><p>${escapeHtml(point.safety)}</p>
-      <details><summary>Координата и источники</summary><p class="muted">${escapeHtml(point.coordinateNote)}</p><ul class="source-list">${sourceList(point)}</ul></details>
+      <details><summary>Координата, источники и дальнейшая проверка</summary><p class="muted">${escapeHtml(point.coordinateNote)}</p>${point.localCheck ? `<p class="research-note"><strong>Что ещё проверить:</strong> ${escapeHtml(point.localCheck)}</p>` : ""}<ul class="source-list">${sourceList(point)}</ul></details>
       <div class="dialog-actions">
         <button class="button button--ghost" type="button" data-add-photo-point="${point.id}">Добавить фото</button>
         <button class="button button--ghost" type="button" data-edit-point="${point.id}">${userIsAuthenticated() ? "Редактировать точку" : "Предложить правку"}</button>
@@ -1515,7 +1597,25 @@
 
   function pointRecordForEditor(pointId) {
     const shared = state.sharedPointRecords.find(point => point.id === pointId);
-    if (shared) return shared;
+    if (shared) {
+      const display = sharedPointToDisplay(shared);
+      return {
+        ...shared,
+        content: {
+          ...(shared.content || {}),
+          researchRevision: display.researchRevision || shared.content?.researchRevision || "",
+          duration: display.duration,
+          coordinateNote: display.coordinateNote,
+          intro: display.intro,
+          facts: display.facts,
+          show: display.show,
+          guideText: display.guideText,
+          familyQuestion: display.familyQuestion,
+          safety: display.safety,
+          sources: display.sources
+        }
+      };
+    }
     const planned = route.plannedPoints.find(point => point.id === pointId);
     const guided = guidedPoints.find(point => point.id === pointId);
     const localDraft = state.edits.find(edit => edit.field === "new-point" && edit.pointId === pointId);
@@ -1649,13 +1749,15 @@
       <div class="guide-copy">
         ${statusBadge(point)}
         <h2>${escapeHtml(point.title)}</h2>
+        ${point.researchPeriod ? `<p class="point-research-meta"><span><strong>Период:</strong> ${escapeHtml(point.researchPeriod)}</span></p>` : ""}
         <p class="lead">${escapeHtml(point.intro)}</p>
         <div class="guide-blocks">
           <section class="guide-block"><h3>Что показать</h3><p>${escapeHtml(point.show)}</p></section>
-          <section class="guide-block"><h3>Как рассказать</h3><p>${escapeHtml(point.guideText)}</p></section>
+          <section class="guide-block guide-block--script"><h3>Как рассказать</h3><p>${escapeHtml(point.guideText)}</p></section>
           <section class="guide-block"><h3>Спросить семью</h3><p>${escapeHtml(point.familyQuestion)}</p></section>
           <section class="guide-block"><h3>Безопасность</h3><p>${escapeHtml(point.safety)}</p></section>
         </div>
+        <details class="guide-reference"><summary>Опорные факты, источники и проверка</summary><ul class="fact-list">${point.facts.map(fact => `<li>${escapeHtml(fact)}</li>`).join("")}</ul>${point.localCheck ? `<p class="research-note"><strong>Что ещё проверить:</strong> ${escapeHtml(point.localCheck)}</p>` : ""}<ul class="source-list">${sourceList(point)}</ul></details>
         <p><button class="text-button" type="button" data-edit-point="${point.id}">Есть уточнение? Предложить правку →</button></p>
       </div>
     </div>`;
@@ -2168,7 +2270,8 @@
         guideText: String(formData.get("guideText") || "").trim(),
         familyQuestion: String(formData.get("familyQuestion") || "").trim(),
         safety: String(formData.get("safety") || "").trim(),
-        sources: parseSources(formData.get("sources"))
+        sources: parseSources(formData.get("sources")),
+        researchRevision: researchById.has(String(formData.get("id"))) ? researchLibrary.revision : content.researchRevision || ""
       }
     };
     const isLocalDraft = state.edits.some(edit => edit.field === "new-point" && edit.pointId === record.id);

@@ -349,3 +349,13 @@ footer p { margin: 7px 0 0; color: #9eb3c0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
 }
+
+.plan-item__summary { margin: 7px 0 0; color: #53606b; font-size: 12px; line-height: 1.5; }
+.point-research-meta { margin: -4px 0 12px; display: flex; flex-wrap: wrap; gap: 8px 16px; color: #5d6872; font-size: 12px; }
+.point-research-meta span { display: inline-flex; gap: 4px; }
+.guide-script { white-space: pre-line; line-height: 1.75; }
+.research-note { margin: 12px 0; padding: 12px 14px; border-left: 3px solid var(--gold); border-radius: 0 10px 10px 0; background: #fff8e8; color: #5f4b1f; line-height: 1.55; }
+.guide-block--script { grid-column: 1 / -1; }
+.guide-reference { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: #f8fafb; }
+.guide-reference summary { cursor: pointer; color: var(--navy); font-weight: 850; }
+.guide-reference .fact-list { margin-top: 14px; }
