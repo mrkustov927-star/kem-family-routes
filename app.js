@@ -689,10 +689,7 @@
         id: "kem-route-line",
         geometry: { type: "LineString", coordinates: routeLine },
         style: {
-          stroke: [
-            { color: "#ffffff", width: 13, opacity: 1 },
-            { color: "#ff0000", width: 7, opacity: 1 }
-          ]
+          stroke: [{ color: "#ff0000", width: 8, opacity: 1 }]
         }
       }));
     }
