@@ -9,6 +9,7 @@
   let profile = null;
   let schemaReady = false;
   let realtimeChannel = null;
+  let passwordRecovery = false;
 
   function emit(event, payload) {
     listeners.forEach(listener => {
@@ -60,14 +61,16 @@
     client = sdk.createClient(config.url, config.publishableKey, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
-    client.auth.onAuthStateChange((_event, session) => {
+    client.auth.onAuthStateChange((event, session) => {
       window.setTimeout(async () => {
         user = session?.user || null;
+        if (event === "PASSWORD_RECOVERY") passwordRecovery = true;
         if (user) {
           try { await loadProfile(); } catch (error) { emit("error", error); }
         } else {
           profile = null;
         }
+        if (event === "PASSWORD_RECOVERY") emit("password-recovery", current());
         emit("auth", current());
       }, 0);
     });
@@ -80,6 +83,7 @@
       user,
       profile,
       authenticated: Boolean(user),
+      passwordRecovery,
       schemaReady
     };
   }
@@ -105,10 +109,34 @@
     if (error) throw normalizeError(error, "Не удалось отправить ссылку");
   }
 
+  async function requestPasswordReset(email) {
+    if (!client) throw new Error("Подключение к общей базе недоступно");
+    const basePath = window.location.pathname.replace(/index\.html$/i, "");
+    const redirectUrl = new URL(basePath, window.location.origin);
+    redirectUrl.searchParams.set("password-recovery", "1");
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl.toString()
+    });
+    if (error) throw normalizeError(error, "Не удалось отправить письмо для восстановления");
+  }
+
+  async function updatePassword(password) {
+    if (!client || !user) throw new Error("Ссылка восстановления недействительна или уже истекла. Запросите новое письмо");
+    const { error } = await client.auth.updateUser({ password });
+    if (error) throw normalizeError(error, "Не удалось изменить пароль");
+    passwordRecovery = false;
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("password-recovery");
+    cleanUrl.hash = "";
+    window.history.replaceState({}, document.title, `${cleanUrl.pathname}${cleanUrl.search}`);
+    emit("auth", current());
+  }
+
   async function signOut() {
     if (!client) return;
     const { error } = await client.auth.signOut();
     if (error) throw normalizeError(error, "Не удалось выйти");
+    passwordRecovery = false;
   }
 
   async function updateDisplayName(displayName) {
@@ -209,6 +237,8 @@
     on,
     signIn,
     sendMagicLink,
+    requestPasswordReset,
+    updatePassword,
     signOut,
     updateDisplayName,
     fetchWorkspace,
