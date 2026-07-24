@@ -148,6 +148,10 @@ h1 span { color: var(--red); }
 .coordinate-draft-marker { width: 34px; height: 34px; display: grid; place-items: center; border: 3px solid white; border-radius: 50% 50% 50% 10%; transform: rotate(-45deg); background: var(--green); color: white; box-shadow: 0 5px 18px rgba(16,42,67,.34); font-weight: 950; }
 .coordinate-draft-marker--new { background: var(--blue); }
 .coordinate-draft-marker span { transform: rotate(45deg); }
+.custom-point-marker { width: 220px; min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; color: var(--navy); }
+.custom-point-marker__label { max-width: 210px; padding: 6px 10px; overflow: hidden; border: 2px solid white; border-radius: 999px; background: var(--navy); color: white; box-shadow: 0 4px 14px rgba(16,42,67,.3); font-size: 12px; font-weight: 850; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.custom-point-marker__pin { width: 34px; height: 34px; margin-top: -2px; display: grid; place-items: center; border: 3px solid white; border-radius: 50% 50% 50% 10%; background: var(--blue); color: white; box-shadow: 0 5px 18px rgba(16,42,67,.34); transform: rotate(-45deg); font-size: 12px; font-weight: 950; }
+.custom-point-marker__pin i { transform: rotate(45deg); font-style: normal; }
 .route-issue-marker { width: 34px; height: 34px; display: grid; place-items: center; border: 3px solid white; border-radius: 50% 50% 50% 10%; transform: rotate(-45deg); background: #ed7d21; color: white; box-shadow: 0 5px 18px rgba(16,42,67,.34); font-weight: 950; }
 .route-issue-marker span { transform: rotate(45deg); }
 .leaflet-popup-content-wrapper { border-radius: 14px; }
