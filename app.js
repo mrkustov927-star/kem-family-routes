@@ -587,7 +587,7 @@
     const routeLine = activeRouteLine();
     if (routeLine.length >= 2) {
       L.polyline(routeLine, { color: "#ffffff", weight: 13, opacity: 1, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
-      L.polyline(routeLine, { color: "#d51116", weight: 7, opacity: 1, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
+      L.polyline(routeLine, { color: "#ff0000", weight: 7, opacity: 1, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
     }
 
     guidedPoints.filter(point => Array.isArray(point.coordinates)).forEach(point => {
@@ -691,7 +691,7 @@
         style: {
           stroke: [
             { color: "#ffffff", width: 13, opacity: 1 },
-            { color: "#d51116", width: 7, opacity: 1 }
+            { color: "#ff0000", width: 7, opacity: 1 }
           ]
         }
       }));
