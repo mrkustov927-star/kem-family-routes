@@ -248,6 +248,8 @@ dialog::backdrop { background: rgba(9,26,40,.66); backdrop-filter: blur(3px); }
 .dialog-shell h2 { margin: 0 38px 14px 0; color: var(--navy); font-size: clamp(30px, 5vw, 48px); line-height: 1; letter-spacing: -.04em; }
 .dialog-visual { position: relative; margin: 24px 0; border-radius: 18px; overflow: hidden; background: var(--navy); }
 .dialog-visual img { width: 100%; display: block; }
+.dialog-visual img[src$="/default-point-cover.jpg"],
+.guide-visual img[src$="/default-point-cover.jpg"] { object-fit: contain; background: #fff; }
 .dialog-visual--custom img { aspect-ratio: 16 / 10; object-fit: cover; }
 .dialog-visual__actions { position: absolute; right: 12px; bottom: 12px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; max-width: calc(100% - 24px); padding: 7px; border-radius: 13px; background: rgba(9, 26, 40, .78); backdrop-filter: blur(8px); }
 .dialog-visual__button { min-height: 38px; padding: 8px 12px; border: 1px solid rgba(255,255,255,.38); border-radius: 9px; background: white; color: var(--navy); font-size: 12px; font-weight: 850; }

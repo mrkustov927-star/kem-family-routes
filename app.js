@@ -5,6 +5,11 @@
   const photos = window.KEM_PHOTOS || [];
   const routeGeometry = window.KEM_ROUTE_GEOMETRY || null;
   const community = window.KemCommunity || null;
+  const DEFAULT_POINT_IMAGE = "./assets/default-point-cover.jpg";
+
+  function normalizeDefaultPointImage(value) {
+    return !value || value === "./assets/icon.svg" ? DEFAULT_POINT_IMAGE : value;
+  }
   const researchLibrary = window.KEM_RESEARCH_CARDS || { revision: "", cards: [] };
   const researchById = new Map((researchLibrary.cards || []).map(card => [card.id, card]));
 
@@ -52,7 +57,7 @@
       coordinateStatus: "needs-check",
       coordinateNote: "Координата берётся из общей карты. До полевой проверки используйте карточку как справочный материал.",
       duration: "6–8 минут",
-      image: "./assets/icon.svg",
+      image: DEFAULT_POINT_IMAGE,
       imageAlt: `Точка маршрута «${planned.title}»`
     });
   }).filter(Boolean).sort((a, b) => a.number - b.number);
@@ -343,7 +348,7 @@
         content: detail ? {
           duration: detail.duration,
           coordinateNote: detail.coordinateNote,
-          image: detail.defaultImage || detail.image,
+          image: normalizeDefaultPointImage(detail.defaultImage || detail.image),
           imageAlt: detail.defaultImageAlt || detail.imageAlt,
           coverImage: detail.coverImage || "",
           coverStoragePath: detail.coverStoragePath || "",
@@ -379,7 +384,7 @@
       return Array.isArray(existing?.[field]) ? existing[field] : fallback;
     };
     const hasCoordinates = Number.isFinite(record.latitude) && Number.isFinite(record.longitude);
-    const defaultImage = content.image || existing?.defaultImage || existing?.image || "./assets/icon.svg";
+    const defaultImage = normalizeDefaultPointImage(content.image || existing?.defaultImage || existing?.image || "");
     const defaultImageAlt = content.imageAlt || existing?.defaultImageAlt || existing?.imageAlt || "Точка экскурсионного маршрута";
     return {
       id: record.id,
