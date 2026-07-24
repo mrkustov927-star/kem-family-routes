@@ -80,7 +80,9 @@
     progressBar: document.querySelector("#progressBar"),
     planFilters: document.querySelector("#planFilters"),
     planGrid: document.querySelector("#planGrid"),
+    routePlanTitle: document.querySelector("#routePlanTitle"),
     readyCount: document.querySelector("#readyCount"),
+    readyLabel: document.querySelector("#readyLabel"),
     readinessBar: document.querySelector("#readinessBar"),
     photoStrip: document.querySelector("#photoStrip"),
     photoDialog: document.querySelector("#photoDialog"),
@@ -886,10 +888,22 @@
     els.planFilters.innerHTML = items.map(item => `<button class="filter-chip ${item.id === state.planFilter ? "is-active" : ""}" type="button" data-plan-filter="${item.id}">${item.title}</button>`).join("");
   }
 
+  function russianPlural(count, one, few, many) {
+    const absolute = Math.abs(Number(count)) % 100;
+    const last = absolute % 10;
+    if (absolute > 10 && absolute < 20) return many;
+    if (last === 1) return one;
+    if (last >= 2 && last <= 4) return few;
+    return many;
+  }
+
   function renderPlan() {
+    const total = route.plannedPoints.length;
     const ready = route.plannedPoints.filter(point => point.status === "ready").length;
+    els.routePlanTitle.textContent = `${total} ${russianPlural(total, "тема", "темы", "тем")} большого маршрута`;
     els.readyCount.textContent = ready;
-    els.readinessBar.style.width = `${(ready / route.plannedPoints.length) * 100}%`;
+    els.readyLabel.textContent = ready === 1 ? "карточка готова" : `${russianPlural(ready, "карточка", "карточки", "карточек")} готовы`;
+    els.readinessBar.style.width = `${total ? (ready / total) * 100 : 0}%`;
     const visible = state.planFilter === "all" ? route.plannedPoints : route.plannedPoints.filter(point => point.chapter === state.planFilter);
     els.planGrid.innerHTML = visible.map(point => {
       const isReady = point.status === "ready";
@@ -2324,7 +2338,7 @@
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("./sw.js?v=20260724-3", { updateViaCache: "none" })
+        .register("./sw.js?v=20260724-13", { updateViaCache: "none" })
         .then(registration => registration.update())
         .catch(() => {});
     });
