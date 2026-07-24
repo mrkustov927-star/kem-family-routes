@@ -199,6 +199,14 @@
     return shared?.route_order ?? point.number ?? "+";
   }
 
+  function namedPointMarkerHtml(title, order = "+") {
+    return `<div class="custom-point-marker"><span class="custom-point-marker__label">${escapeHtml(title || "Новая точка")}</span><span class="custom-point-marker__pin"><i>${escapeHtml(order || "+")}</i></span></div>`;
+  }
+
+  function sharedPointMarkerHtml(record) {
+    return namedPointMarkerHtml(record.short_title || record.title, record.route_order);
+  }
+
   function photoPointDetails(pointId) {
     const guided = guidedPoints.find(point => point.id === pointId);
     if (guided) return { id: guided.id, title: guided.title, number: pointDisplayNumber(guided), coordinates: guided.coordinates };
@@ -584,7 +592,13 @@
     state.sharedPointRecords.forEach(record => {
       if (guidedPoints.some(point => point.id === record.id) || !Number.isFinite(record.latitude) || !Number.isFinite(record.longitude)) return;
       const marker = L.marker([record.latitude, record.longitude], {
-        icon: L.divIcon({ className: "", html: '<div class="coordinate-draft-marker coordinate-draft-marker--new"><span>＋</span></div>', iconSize: [34, 34], iconAnchor: [17, 34] })
+        icon: L.divIcon({
+          className: "",
+          html: sharedPointMarkerHtml(record),
+          iconSize: [220, 64],
+          iconAnchor: [110, 60],
+          popupAnchor: [0, -58]
+        })
       }).addTo(state.routeLayer);
       marker.bindPopup(`<strong>${escapeHtml(record.title)}</strong><br><small>Общая точка проекта</small><br><button class="popup-button" onclick="window.openKemSharedPoint('${record.id}')">Редактировать →</button>`);
     });
@@ -681,8 +695,8 @@
       if (guidedPoints.some(point => point.id === record.id) || !Number.isFinite(record.latitude) || !Number.isFinite(record.longitude)) return;
       addYandexMarker(
         [record.latitude, record.longitude],
-        '<div class="coordinate-draft-marker coordinate-draft-marker--new"><span>＋</span></div>',
-        record.title,
+        sharedPointMarkerHtml(record),
+        record.short_title || record.title,
         () => openSharedPointEditor(record.id)
       );
     });
@@ -728,7 +742,9 @@
       const isNewPoint = edit.field === "new-point";
       addYandexMarker(
         edit.coordinates,
-        `<div class="coordinate-draft-marker ${isNewPoint ? "coordinate-draft-marker--new" : ""}"><span>${isNewPoint ? "+" : "✓"}</span></div>`,
+        isNewPoint
+          ? namedPointMarkerHtml(edit.pointName)
+          : '<div class="coordinate-draft-marker"><span>✓</span></div>',
         `${edit.pointName}: ${isNewPoint ? "новая точка" : "уточнение координаты"}`,
         () => {
           if (isNewPoint) openDraftPoint(edit.id);
@@ -1160,10 +1176,12 @@
         const marker = L.marker(edit.coordinates, {
           icon: L.divIcon({
             className: "",
-            html: `<div class="coordinate-draft-marker ${isNewPoint ? "coordinate-draft-marker--new" : ""}"><span>${isNewPoint ? "+" : "✓"}</span></div>`,
-            iconSize: [34, 34],
-            iconAnchor: [17, 34],
-            popupAnchor: [0, -32]
+            html: isNewPoint
+              ? namedPointMarkerHtml(edit.pointName)
+              : '<div class="coordinate-draft-marker"><span>✓</span></div>',
+            iconSize: isNewPoint ? [220, 64] : [34, 34],
+            iconAnchor: isNewPoint ? [110, 60] : [17, 34],
+            popupAnchor: [0, isNewPoint ? -58 : -32]
           })
         }).addTo(state.coordinateDraftLayer);
         const action = isNewPoint
@@ -1194,6 +1212,10 @@
   function openDraftPoint(editId) {
     const draft = state.edits.find(edit => edit.id === editId && edit.field === "new-point");
     if (!draft) return;
+    if (userIsAuthenticated()) {
+      openSharedPointEditor(draft.pointId);
+      return;
+    }
     els.draftPointForm.reset();
     els.draftPointEditId.value = draft.id;
     els.draftPointName.value = draft.pointName || "";
@@ -1417,6 +1439,31 @@
     if (shared) return shared;
     const planned = route.plannedPoints.find(point => point.id === pointId);
     const guided = guidedPoints.find(point => point.id === pointId);
+    const localDraft = state.edits.find(edit => edit.field === "new-point" && edit.pointId === pointId);
+    if (!planned && !guided && localDraft) {
+      const maxOrder = route.plannedPoints.reduce((maximum, point) => Math.max(maximum, Number(point.number) || 0), 0);
+      return {
+        id: localDraft.pointId,
+        route_order: maxOrder + 1,
+        chapter: "railway",
+        title: localDraft.pointName || "Новая точка",
+        short_title: localDraft.pointName || "Новая точка",
+        latitude: Number(localDraft.coordinates?.[0]),
+        longitude: Number(localDraft.coordinates?.[1]),
+        coordinate_status: "needs-check",
+        status: "draft",
+        content: {
+          coordinateNote: localDraft.source || "Новая координата участника; требуется полевая проверка.",
+          intro: "",
+          facts: [],
+          show: "",
+          guideText: "",
+          familyQuestion: "",
+          safety: "",
+          sources: []
+        }
+      };
+    }
     if (!planned && !guided) return null;
     return {
       id: pointId,
@@ -2038,13 +2085,18 @@
         sources: parseSources(formData.get("sources"))
       }
     };
+    const isLocalDraft = state.edits.some(edit => edit.field === "new-point" && edit.pointId === record.id);
     els.sharedPointSaveButton.disabled = true;
     els.sharedPointSaveButton.textContent = "Сохраняем…";
     try {
       await community.savePoint(record);
+      if (isLocalDraft) {
+        state.edits = state.edits.filter(edit => !(edit.field === "new-point" && edit.pointId === record.id));
+        localStorage.setItem(STORAGE_EDITS, JSON.stringify(state.edits));
+      }
       await refreshCommunityWorkspace({ quiet: true });
       els.sharedPointDialog.close();
-      showToast("Точка сохранена в общей карте");
+      showToast(isLocalDraft ? "Черновик перенесён в общую карту и сохранён" : "Точка сохранена в общей карте");
     } catch (error) {
       showToast(error.message || "Не удалось сохранить точку");
     } finally {
