@@ -253,6 +253,24 @@
     return { ...data, publicUrl: client.storage.from("point-photos").getPublicUrl(path).data.publicUrl };
   }
 
+  async function uploadPointCover({ pointId, file }) {
+    if (!client || !user) throw new Error("Для загрузки обложки нужно войти");
+    const extension = file.type === "image/png" ? "png" : file.type === "image/jpeg" ? "jpg" : "webp";
+    const coverId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const safePointId = String(pointId || "point").replace(/[^a-z0-9_-]+/gi, "-").slice(0, 80) || "point";
+    const path = `${user.id}/covers/${safePointId}-${coverId}.${extension}`;
+    const { error } = await client.storage.from("point-photos").upload(path, file, {
+      cacheControl: "31536000",
+      contentType: file.type,
+      upsert: false
+    });
+    if (error) throw normalizeError(error, "Не удалось загрузить обложку");
+    return {
+      storagePath: path,
+      publicUrl: client.storage.from("point-photos").getPublicUrl(path).data.publicUrl
+    };
+  }
+
   async function saveRouteWaypoints(waypoints) {
     if (!client || !user) throw new Error("Для редактирования маршрута нужно войти");
     const { error } = await client.rpc("replace_main_route_waypoints", { p_waypoints: waypoints });
@@ -282,6 +300,7 @@
     seedPoints,
     savePoint,
     uploadPhoto,
+    uploadPointCover,
     saveRouteWaypoints,
     subscribeToWorkspace
   };
