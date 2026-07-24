@@ -173,10 +173,13 @@
 
   async function seedPoints(records) {
     if (!client || !user || !records.length) return false;
-    const { count, error: countError } = await client.from("points").select("id", { count: "exact", head: true });
-    if (countError) throw normalizeError(countError, "Не удалось проверить исходные точки");
-    if (count > 0) return false;
-    const payload = records.map(record => ({ ...record, created_by: user.id, updated_by: user.id }));
+    const { data: existingPoints, error: lookupError } = await client.from("points").select("id");
+    if (lookupError) throw normalizeError(lookupError, "Не удалось проверить исходные точки");
+    const existingIds = new Set((existingPoints || []).map(point => point.id));
+    const payload = records
+      .filter(record => !existingIds.has(record.id))
+      .map(record => ({ ...record, created_by: user.id, updated_by: user.id }));
+    if (!payload.length) return false;
     const { error } = await client.from("points").insert(payload);
     if (error) throw normalizeError(error, "Не удалось перенести исходные точки");
     return true;
@@ -184,9 +187,36 @@
 
   async function savePoint(record) {
     if (!client || !user) throw new Error("Для общей правки нужно войти");
-    const payload = { ...record, updated_by: user.id };
-    if (!payload.created_by) payload.created_by = user.id;
-    const { data, error } = await client.from("points").upsert(payload, { onConflict: "id" }).select().single();
+    const { data: existingPoint, error: lookupError } = await client
+      .from("points")
+      .select("id")
+      .eq("id", record.id)
+      .maybeSingle();
+    if (lookupError) throw normalizeError(lookupError, "Не удалось проверить точку");
+
+    let result;
+    if (existingPoint) {
+      const {
+        id,
+        created_by: _createdBy,
+        created_at: _createdAt,
+        updated_at: _updatedAt,
+        ...changes
+      } = record;
+      result = await client
+        .from("points")
+        .update({ ...changes, updated_by: user.id })
+        .eq("id", id)
+        .select()
+        .single();
+    } else {
+      result = await client
+        .from("points")
+        .insert({ ...record, created_by: user.id, updated_by: user.id })
+        .select()
+        .single();
+    }
+    const { data, error } = result;
     if (error) throw normalizeError(error, "Не удалось сохранить точку");
     return data;
   }
