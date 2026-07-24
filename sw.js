@@ -1,4 +1,4 @@
-const CACHE_NAME = "kem-family-routes-v27";
+const CACHE_NAME = "kem-family-routes-v28";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -11,6 +11,7 @@ const APP_SHELL = [
   "./app.js",
   "./manifest.webmanifest",
   "./assets/icon.svg",
+  "./assets/photos/hero-kem.jpg",
   "./assets/illustrations/station.svg",
   "./assets/illustrations/tower.svg",
   "./assets/illustrations/officers-house.svg",
