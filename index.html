@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://tile.openstreetmap.org">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <link rel="stylesheet" href="./styles.css?v=20261101-visual-1">
+  <link rel="stylesheet" href="./styles.css?v=20261101-visual-edit-1">
 </head>
 <body>
   <a class="skip-link" href="#main">Перейти к маршруту</a>
@@ -359,6 +359,31 @@
     </form>
   </dialog>
 
+  <dialog class="visual-editor-dialog" id="visualEditorDialog" aria-labelledby="visualEditorTitle">
+    <form class="dialog-shell edit-form visual-editor" id="visualEditorForm">
+      <button class="dialog-close" type="button" data-close-dialog="visualEditorDialog" aria-label="Закрыть">×</button>
+      <p class="eyebrow">Материалы точки</p>
+      <h2 id="visualEditorTitle">Фото и документы</h2>
+      <p class="muted" id="visualEditorPointName"></p>
+      <p class="form-note">Изменения увидят все участники. Для документов укажите ссылку на файл или страницу в архиве. Фотографии можно загрузить с устройства или добавить по ссылке.</p>
+      <label>Описание раздела<textarea id="visualEditorSummary" name="summary" rows="3" placeholder="Что удалось найти и что подтверждают материалы"></textarea></label>
+      <section class="visual-editor__group" aria-labelledby="visualImagesTitle">
+        <div class="visual-editor__heading"><div><h3 id="visualImagesTitle">Фотографии и изображения</h3><p>Подпишите, что изображено, и укажите автора и источник.</p></div><button class="button button--ghost" id="visualAddImage" type="button">＋ Добавить фото</button></div>
+        <div class="visual-editor__rows" id="visualEditorImages"></div>
+      </section>
+      <section class="visual-editor__group" aria-labelledby="visualLinksTitle">
+        <div class="visual-editor__heading"><div><h3 id="visualLinksTitle">Документы и ссылки</h3><p>Публикации, сканы, архивы и документы по ссылке.</p></div><button class="button button--ghost" id="visualAddLink" type="button">＋ Добавить документ</button></div>
+        <div class="visual-editor__rows" id="visualEditorLinks"></div>
+      </section>
+      <label>Что ещё найти или проверить<textarea id="visualEditorNext" name="next" rows="3" placeholder="Например: уточнить дату съёмки у музея"></textarea></label>
+      <p class="visual-editor__error" id="visualEditorError" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button class="button button--ghost" type="button" data-close-dialog="visualEditorDialog">Отмена</button>
+        <button class="button button--primary" id="visualEditorSave" type="submit">Сохранить раздел</button>
+      </div>
+    </form>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <footer>
@@ -374,7 +399,7 @@
   <script src="./photos.js"></script>
   <script src="./route-geometry.js"></script>
   <script src="./supabase-config.js?v=20260718-2"></script>
-  <script src="./community.js?v=20260724-5"></script>
-  <script src="./app.js?v=20261101-visual-2"></script>
+  <script src="./community.js?v=20261101-visual-edit-1"></script>
+  <script src="./app.js?v=20261101-visual-edit-1"></script>
 </body>
 </html>

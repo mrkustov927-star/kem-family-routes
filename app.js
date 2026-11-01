@@ -175,6 +175,12 @@
     sharedPointDialog: document.querySelector("#sharedPointDialog"),
     sharedPointForm: document.querySelector("#sharedPointForm"),
     sharedPointSaveButton: document.querySelector("#sharedPointSaveButton"),
+    visualEditorDialog: document.querySelector("#visualEditorDialog"),
+    visualEditorForm: document.querySelector("#visualEditorForm"),
+    visualEditorImages: document.querySelector("#visualEditorImages"),
+    visualEditorLinks: document.querySelector("#visualEditorLinks"),
+    visualEditorError: document.querySelector("#visualEditorError"),
+    visualEditorSave: document.querySelector("#visualEditorSave"),
     routeEditor: document.querySelector("#routeEditor"),
     routeEditorCount: document.querySelector("#routeEditorCount"),
     resetPasswordButton: document.querySelector("#resetPasswordButton"),
@@ -1553,33 +1559,212 @@
 
   function safeExternalUrl(value) {
     try {
-      const url = new URL(String(value || ""), window.location.href);
+      const raw = String(value || "").trim();
+      if (!raw) return "";
+      const url = new URL(raw, window.location.href);
       return ["http:", "https:"].includes(url.protocol) ? url.href : "";
     } catch (_) {
       return "";
     }
   }
 
+  function pointVisualEvidence(pointId) {
+    const record = state.sharedPointRecords.find(item => item.id === pointId);
+    const content = record?.content || {};
+    const saved = Object.prototype.hasOwnProperty.call(content, "visualEvidence");
+    const evidence = saved ? content.visualEvidence : window.KEM_VISUAL_EVIDENCE?.[pointId];
+    return evidence && typeof evidence === "object" && !Array.isArray(evidence) ? evidence : {};
+  }
+
   function visualEvidence(pointId) {
-    const evidence = window.KEM_VISUAL_EVIDENCE?.[pointId];
-    if (!evidence) return "";
-    const figures = (evidence.images || []).filter(item => safeExternalUrl(item.url) && safeExternalUrl(item.source)).map(item => `
+    const evidence = pointVisualEvidence(pointId);
+    const evidenceImages = Array.isArray(evidence.images) ? evidence.images : [];
+    const evidenceLinks = Array.isArray(evidence.links) ? evidence.links : [];
+    const figures = evidenceImages.filter(item => item && safeExternalUrl(item.url)).map(item => `
       <figure class="visual-evidence__figure">
-        <img src="${escapeHtml(safeExternalUrl(item.url))}" alt="${escapeHtml(item.alt)}" loading="lazy" decoding="async">
-        <p class="visual-evidence__unavailable" hidden>Изображение временно недоступно. Его можно открыть по ссылке на источник ниже.</p>
+        <img src="${escapeHtml(safeExternalUrl(item.url))}" alt="${escapeHtml(item.alt || item.caption || "Изображение к карточке")}" loading="lazy" decoding="async">
+        <p class="visual-evidence__unavailable" hidden>Изображение временно недоступно. ${safeExternalUrl(item.source) ? "Попробуйте открыть ссылку на источник ниже." : "Проверьте ссылку на изображение."}</p>
         <figcaption>
-          <strong>${escapeHtml(item.caption)}</strong>
-          <span>${escapeHtml(item.credit)} · <a href="${escapeHtml(safeExternalUrl(item.source))}" target="_blank" rel="noopener noreferrer">источник изображения</a>${safeExternalUrl(item.licenseUrl) ? ` · <a href="${escapeHtml(safeExternalUrl(item.licenseUrl))}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.license)}</a>` : ""}</span>
+          <strong>${escapeHtml(item.caption || "Изображение к карточке")}</strong>
+          <span>${[item.credit ? escapeHtml(item.credit) : "", safeExternalUrl(item.source) ? `<a href="${escapeHtml(safeExternalUrl(item.source))}" target="_blank" rel="noopener noreferrer">источник изображения</a>` : "", item.license ? (safeExternalUrl(item.licenseUrl) ? `<a href="${escapeHtml(safeExternalUrl(item.licenseUrl))}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.license)}</a>` : escapeHtml(item.license)) : ""].filter(Boolean).join(" · ")}</span>
         </figcaption>
       </figure>`).join("");
-    const links = (evidence.links || []).filter(item => safeExternalUrl(item.url)).map(item => `<li><a href="${escapeHtml(safeExternalUrl(item.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.label)}</a>${item.note ? ` — ${escapeHtml(item.note)}` : ""}</li>`).join("");
+    const links = evidenceLinks.filter(item => item && safeExternalUrl(item.url)).map(item => `<li><a href="${escapeHtml(safeExternalUrl(item.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.label || "Открыть документ")}</a>${item.note ? ` — ${escapeHtml(item.note)}` : ""}</li>`).join("");
+    const summary = evidence.summary || (!figures && !links && !evidence.next ? "Материалы для этой точки ещё не добавлены." : "");
     return `<section class="visual-evidence" aria-label="Фото и документы">
-      <h3>Фото и документы</h3>
-      <p>${escapeHtml(evidence.summary)}</p>
+      <div class="visual-evidence__heading"><h3>Фото и документы</h3><button class="visual-evidence__edit" type="button" data-edit-visual-evidence="${escapeHtml(pointId)}">✎ Редактировать</button></div>
+      ${summary ? `<p>${escapeHtml(summary)}</p>` : ""}
       ${figures ? `<div class="visual-evidence__grid">${figures}</div>` : ""}
       ${links ? `<ul class="visual-evidence__links">${links}</ul>` : ""}
       ${evidence.next ? `<p class="visual-evidence__next"><strong>Что ещё найти или проверить:</strong> ${escapeHtml(evidence.next)}</p>` : ""}
     </section>`;
+  }
+
+  let visualEditorSession = null;
+  let visualEditorSaving = false;
+
+  function visualEditorField(row, name) {
+    return row.querySelector(`[data-visual-field="${name}"]`);
+  }
+
+  function addVisualImageRow(image = {}) {
+    const row = document.createElement("fieldset");
+    row.className = "visual-editor__item";
+    row.dataset.visualImageRow = "";
+    row.visualOriginal = image && typeof image === "object" ? { ...image } : {};
+    const value = name => escapeHtml(row.visualOriginal[name] || "");
+    row.innerHTML = `
+      <legend>Фотография или изображение</legend>
+      <label>Ссылка на изображение<input type="url" data-visual-field="url" value="${value("url")}" placeholder="https://..."></label>
+      <label>Или загрузить с устройства<input type="file" data-visual-file accept="image/jpeg,image/png,image/webp"></label>
+      <p class="form-note">JPG, PNG или WebP, до 10 МБ. Выбранный файл заменит изображение по ссылке.</p>
+      <label>Подпись<textarea data-visual-field="caption" rows="2" placeholder="Что изображено и когда сделан снимок">${value("caption")}</textarea></label>
+      <details><summary>Автор, источник и права</summary><div class="visual-editor__metadata">
+        <label>Автор и учреждение<input data-visual-field="credit" value="${value("credit")}" placeholder="Имя фотографа, архив или музей"></label>
+        <label>Ссылка на источник<input type="url" data-visual-field="source" value="${value("source")}" placeholder="https://..."></label>
+        <label>Условия использования<input data-visual-field="license" value="${value("license")}" placeholder="Например: с разрешения автора"></label>
+        <label>Ссылка на условия использования<input type="url" data-visual-field="licenseUrl" value="${value("licenseUrl")}" placeholder="https://..."></label>
+        <label>Описание изображения для незрячих<input data-visual-field="alt" value="${value("alt")}" placeholder="Если не указано, будет использована подпись"></label>
+      </div></details>
+      <button class="text-button visual-editor__remove" type="button" data-remove-visual-row>Удалить изображение из раздела</button>`;
+    els.visualEditorImages.appendChild(row);
+    return row;
+  }
+
+  function addVisualLinkRow(link = {}) {
+    const row = document.createElement("fieldset");
+    row.className = "visual-editor__item";
+    row.dataset.visualLinkRow = "";
+    row.visualOriginal = link && typeof link === "object" ? { ...link } : {};
+    const value = name => escapeHtml(row.visualOriginal[name] || "");
+    row.innerHTML = `
+      <legend>Документ или источник</legend>
+      <label>Название<input data-visual-field="label" value="${value("label")}" placeholder="Например: план Кеми в архиве"></label>
+      <label>Ссылка на документ или страницу<input type="url" data-visual-field="url" value="${value("url")}" placeholder="https://..."></label>
+      <label>Пояснение<textarea data-visual-field="note" rows="2" placeholder="Что можно увидеть в источнике">${value("note")}</textarea></label>
+      <button class="text-button visual-editor__remove" type="button" data-remove-visual-row>Удалить документ из раздела</button>`;
+    els.visualEditorLinks.appendChild(row);
+    return row;
+  }
+
+  function openVisualEditor(pointId) {
+    if (!requireParticipant("Чтобы редактировать фото и документы, войдите как участник")) return;
+    const record = state.sharedPointRecords.find(item => item.id === pointId);
+    if (!record) {
+      showToast("Сначала сохраните эту точку в общей карте");
+      return;
+    }
+    const content = record.content || {};
+    const hasValue = Object.prototype.hasOwnProperty.call(content, "visualEvidence");
+    const evidence = pointVisualEvidence(pointId);
+    visualEditorSession = {
+      pointId,
+      baseline: { hasValue, value: hasValue ? JSON.parse(JSON.stringify(content.visualEvidence)) : undefined },
+      original: JSON.parse(JSON.stringify(evidence))
+    };
+    els.visualEditorForm.reset();
+    els.visualEditorImages.replaceChildren();
+    els.visualEditorLinks.replaceChildren();
+    els.visualEditorError.hidden = true;
+    document.querySelector("#visualEditorPointName").textContent = record.title || "Точка маршрута";
+    document.querySelector("#visualEditorSummary").value = evidence.summary || "";
+    document.querySelector("#visualEditorNext").value = evidence.next || "";
+    (Array.isArray(evidence.images) ? evidence.images : []).forEach(addVisualImageRow);
+    (Array.isArray(evidence.links) ? evidence.links : []).forEach(addVisualLinkRow);
+    if (els.pointDialog.open) els.pointDialog.close();
+    els.visualEditorDialog.showModal();
+  }
+
+  function collectVisualEditor() {
+    const field = (row, name) => String(visualEditorField(row, name)?.value || "").trim();
+    const validUrl = (url, description) => {
+      if (url && !safeExternalUrl(url)) throw new Error(`Проверьте ссылку: ${description}. Используйте адрес http:// или https://`);
+    };
+    const pendingFiles = [];
+    const images = [...els.visualEditorImages.querySelectorAll("[data-visual-image-row]")].map(row => {
+      const url = field(row, "url");
+      const caption = field(row, "caption");
+      const credit = field(row, "credit");
+      const source = field(row, "source");
+      const license = field(row, "license");
+      const licenseUrl = field(row, "licenseUrl");
+      const alt = field(row, "alt");
+      const file = row.querySelector("[data-visual-file]")?.files?.[0];
+      if (!url && !file && !caption && !credit && !source && !license && !licenseUrl && !alt) return null;
+      if (!url && !file) throw new Error("Для фотографии укажите ссылку или выберите файл");
+      if (!file) validUrl(url, "изображение");
+      validUrl(source, "источник изображения");
+      validUrl(licenseUrl, "условия использования");
+      if (file && !["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Выберите изображение JPG, PNG или WebP");
+      if (file && file.size > 10 * 1024 * 1024) throw new Error("Размер изображения не должен превышать 10 МБ");
+      const result = { ...row.visualOriginal, url, caption, credit, source, license, licenseUrl, alt: alt || caption || "Изображение к карточке" };
+      if (url !== row.visualOriginal.url) delete result.storagePath;
+      if (file) pendingFiles.push({ row, file, result });
+      return result;
+    }).filter(Boolean);
+    const links = [...els.visualEditorLinks.querySelectorAll("[data-visual-link-row]")].map(row => {
+      const url = field(row, "url");
+      const label = field(row, "label");
+      const note = field(row, "note");
+      if (!url && !label && !note) return null;
+      if (!url) throw new Error("Для документа укажите ссылку на файл или страницу");
+      validUrl(url, "документ");
+      return { ...row.visualOriginal, url, label: label || "Открыть документ", note };
+    }).filter(Boolean);
+    return {
+      pendingFiles,
+      evidence: {
+        ...visualEditorSession.original,
+        summary: document.querySelector("#visualEditorSummary").value.trim(),
+        images,
+        links,
+        next: document.querySelector("#visualEditorNext").value.trim()
+      }
+    };
+  }
+
+  async function saveVisualEditor(event) {
+    event.preventDefault();
+    if (!visualEditorSession || !requireParticipant()) return;
+    els.visualEditorError.hidden = true;
+    let draft;
+    try { draft = collectVisualEditor(); }
+    catch (error) {
+      els.visualEditorError.textContent = error.message;
+      els.visualEditorError.hidden = false;
+      return;
+    }
+    visualEditorSaving = true;
+    const buttons = [...els.visualEditorForm.querySelectorAll("button")];
+    buttons.forEach(button => { button.disabled = true; });
+    els.visualEditorForm.setAttribute("aria-busy", "true");
+    els.visualEditorSave.textContent = "Сохраняем…";
+    try {
+      for (const upload of draft.pendingFiles) {
+        const uploaded = await community.uploadEvidenceImage({ pointId: visualEditorSession.pointId, file: upload.file });
+        upload.result.url = uploaded.publicUrl;
+        upload.result.storagePath = uploaded.storagePath;
+        upload.row.visualOriginal = { ...upload.result };
+        visualEditorField(upload.row, "url").value = uploaded.publicUrl;
+        upload.row.querySelector("[data-visual-file]").value = "";
+      }
+      const pointId = visualEditorSession.pointId;
+      await community.saveVisualEvidence(pointId, draft.evidence, visualEditorSession.baseline);
+      const localRecord = state.sharedPointRecords.find(item => item.id === pointId);
+      if (localRecord) localRecord.content = { ...(localRecord.content || {}), visualEvidence: draft.evidence };
+      await refreshCommunityWorkspace({ quiet: true });
+      els.visualEditorDialog.close();
+      openPoint(pointId);
+      showToast("Фото и документы сохранены для всех участников");
+    } catch (error) {
+      els.visualEditorError.textContent = error.message || "Не удалось сохранить раздел";
+      els.visualEditorError.hidden = false;
+    } finally {
+      visualEditorSaving = false;
+      buttons.forEach(button => { button.disabled = false; });
+      els.visualEditorForm.removeAttribute("aria-busy");
+      els.visualEditorSave.textContent = "Сохранить раздел";
+    }
   }
 
   function openPoint(pointId) {
@@ -1949,6 +2134,7 @@
     const openPlanButton = event.target.closest("[data-open-plan]");
     const photoButton = event.target.closest("[data-photo-id]");
     const addPhotoButton = event.target.closest("[data-add-photo-point]");
+    const editVisualButton = event.target.closest("[data-edit-visual-evidence]");
     const deletePhotoButton = event.target.closest("[data-delete-photo-draft]");
     const deleteSharedPhotoButton = event.target.closest("[data-delete-shared-photo]");
     const deleteSharedPointButton = event.target.closest("[data-delete-shared-point]");
@@ -1979,6 +2165,7 @@
     }
     if (photoButton) openPhoto(photoButton.dataset.photoId);
     if (addPhotoButton) openPhotoUpload(addPhotoButton.dataset.addPhotoPoint);
+    if (editVisualButton) openVisualEditor(editVisualButton.dataset.editVisualEvidence);
     if (deletePhotoButton && window.confirm("Удалить этот черновик фотографии?")) deletePhotoDraft(deletePhotoButton.dataset.deletePhotoDraft);
     if (deleteSharedPhotoButton && window.confirm("Удалить эту фотографию из общей галереи?")) deleteSharedPhoto(deleteSharedPhotoButton.dataset.deleteSharedPhoto);
     if (deleteSharedPointButton && window.confirm("Удалить эту точку из маршрута для всех участников?")) archiveSharedPoint(deleteSharedPointButton.dataset.deleteSharedPoint);
@@ -2230,6 +2417,14 @@
   });
   document.querySelector("#draftPointRelocateButton").addEventListener("click", () => startDraftRelocation(els.draftPointEditId.value));
   document.querySelector("#sharedPointRelocateButton").addEventListener("click", startSharedPointRelocation);
+  document.querySelector("#visualAddImage").addEventListener("click", () => addVisualImageRow());
+  document.querySelector("#visualAddLink").addEventListener("click", () => addVisualLinkRow());
+  els.visualEditorForm.addEventListener("click", event => {
+    const remove = event.target.closest("[data-remove-visual-row]");
+    if (remove) remove.closest(".visual-editor__item")?.remove();
+  });
+  els.visualEditorForm.addEventListener("submit", saveVisualEditor);
+  els.visualEditorDialog.addEventListener("cancel", event => { if (visualEditorSaving) event.preventDefault(); });
   document.querySelector("#draftPointDeleteButton").addEventListener("click", () => {
     const draft = state.edits.find(edit => edit.id === els.draftPointEditId.value && edit.field === "new-point");
     if (!draft) return;

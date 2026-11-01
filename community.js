@@ -203,7 +203,7 @@
     if (!client || !user) throw new Error("Для общей правки нужно войти");
     const { data: existingPoint, error: lookupError } = await client
       .from("points")
-      .select("id")
+      .select("id, content, updated_at")
       .eq("id", record.id)
       .maybeSingle();
     if (lookupError) throw normalizeError(lookupError, "Не удалось проверить точку");
@@ -217,12 +217,18 @@
         updated_at: _updatedAt,
         ...changes
       } = record;
+      // The ordinary point editor does not edit this section. Keep the latest
+      // saved value even if another participant opened the point form earlier.
+      if (changes.content && Object.prototype.hasOwnProperty.call(existingPoint.content || {}, "visualEvidence")) {
+        changes.content = { ...changes.content, visualEvidence: existingPoint.content.visualEvidence };
+      }
       result = await client
         .from("points")
         .update({ ...changes, updated_by: user.id })
         .eq("id", id)
+        .eq("updated_at", existingPoint.updated_at)
         .select()
-        .single();
+        .maybeSingle();
     } else {
       result = await client
         .from("points")
@@ -232,6 +238,34 @@
     }
     const { data, error } = result;
     if (error) throw normalizeError(error, "Не удалось сохранить точку");
+    if (!data) throw new Error("Карточка изменилась во время сохранения. Проверьте её и попробуйте снова.");
+    return data;
+  }
+
+  function canonicalJson(value) {
+    if (Array.isArray(value)) return value.map(canonicalJson);
+    if (value && typeof value === "object") {
+      return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalJson(value[key])]));
+    }
+    return value;
+  }
+
+  async function saveVisualEvidence(pointId, evidence, baseline) {
+    if (!client || !user) throw new Error("Для общей правки нужно войти");
+    const { data: latest, error: lookupError } = await client.from("points")
+      .select("id, content, updated_at, status").eq("id", pointId).maybeSingle();
+    if (lookupError) throw normalizeError(lookupError, "Не удалось проверить карточку");
+    if (!latest || latest.status === "archived") throw new Error("Карточка не найдена. Сначала сохраните точку в общей карте.");
+    const content = latest.content || {};
+    const hasSaved = Object.prototype.hasOwnProperty.call(content, "visualEvidence");
+    const unchanged = hasSaved === baseline.hasValue && (!hasSaved ||
+      JSON.stringify(canonicalJson(content.visualEvidence)) === JSON.stringify(canonicalJson(baseline.value)));
+    if (!unchanged) throw new Error("Другой участник уже изменил этот раздел. Скопируйте свои изменения и откройте раздел заново.");
+    const { data, error } = await client.from("points")
+      .update({ content: { ...content, visualEvidence: evidence }, updated_by: user.id })
+      .eq("id", pointId).eq("updated_at", latest.updated_at).select("id, updated_at").maybeSingle();
+    if (error) throw normalizeError(error, "Не удалось сохранить раздел");
+    if (!data) throw new Error("Карточка изменилась во время сохранения. Ваши изменения остались в форме — попробуйте ещё раз.");
     return data;
   }
 
@@ -312,6 +346,21 @@
     };
   }
 
+  async function uploadEvidenceImage({ pointId, file }) {
+    if (!client || !user) throw new Error("Для загрузки фотографии нужно войти");
+    const types = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+    if (!types[file.type]) throw new Error("Выберите изображение JPG, PNG или WebP");
+    if (file.size > 10 * 1024 * 1024) throw new Error("Размер изображения не должен превышать 10 МБ");
+    const imageId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const safePointId = String(pointId || "point").replace(/[^a-z0-9_-]+/gi, "-").slice(0, 80) || "point";
+    const path = `${user.id}/evidence/${safePointId}-${imageId}.${types[file.type]}`;
+    const { error } = await client.storage.from("point-photos").upload(path, file, {
+      cacheControl: "31536000", contentType: file.type, upsert: false
+    });
+    if (error) throw normalizeError(error, "Не удалось загрузить изображение");
+    return { storagePath: path, publicUrl: client.storage.from("point-photos").getPublicUrl(path).data.publicUrl };
+  }
+
   async function saveRouteWaypoints(waypoints) {
     if (!client || !user) throw new Error("Для редактирования маршрута нужно войти");
     const { error } = await client.rpc("replace_main_route_waypoints", { p_waypoints: waypoints });
@@ -340,10 +389,12 @@
     fetchWorkspace,
     seedPoints,
     savePoint,
+    saveVisualEvidence,
     archivePoint,
     deletePhoto,
     uploadPhoto,
     uploadPointCover,
+    uploadEvidenceImage,
     saveRouteWaypoints,
     subscribeToWorkspace
   };

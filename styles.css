@@ -379,3 +379,25 @@ footer p { margin: 7px 0 0; color: #9eb3c0; }
 .visual-evidence__links li + li { margin-top: 8px; }
 .visual-evidence__next { margin-bottom: 0; color: #54666d; font-size: 13px; }
 .visual-evidence__unavailable { margin: 0; padding: 16px 12px; color: #54666d; font-size: 13px; }
+.visual-evidence__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.visual-evidence__heading h3 { margin-bottom: 0; }
+.visual-evidence__edit { flex: 0 0 auto; padding: 8px 10px; border: 1px solid #b8d4d1; border-radius: 9px; background: white; color: #155c72; font-size: 12px; font-weight: 800; }
+.visual-editor-dialog { width: min(820px, calc(100% - 28px)); }
+.visual-editor__group { display: grid; gap: 14px; padding: 17px; border: 1px solid #dbe5e6; border-radius: 15px; background: #f6faf9; }
+.visual-editor__heading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.visual-editor__heading h3 { margin: 0 0 6px; color: var(--navy); font-size: 17px; }
+.visual-editor__heading p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.visual-editor__heading .button { flex: 0 0 auto; }
+.visual-editor__rows { display: grid; gap: 12px; }
+.visual-editor__item { display: grid; gap: 13px; min-width: 0; margin: 0; padding: 16px; border: 1px solid #d6e1e3; border-radius: 12px; background: white; }
+.visual-editor__item legend { padding: 0 6px; color: var(--navy); font-size: 13px; font-weight: 850; }
+.visual-editor__item details { padding: 12px; border: 1px solid #e0e8e9; border-radius: 10px; }
+.visual-editor__item details summary { color: #155c72; cursor: pointer; font-size: 13px; font-weight: 800; }
+.visual-editor__metadata { display: grid; gap: 12px; margin-top: 12px; }
+.visual-editor__remove { justify-self: start; color: #9c3535; font-size: 13px; }
+.visual-editor__error { margin: 0; padding: 12px 14px; border-radius: 10px; background: #fff0f0; color: #9f2025; font-size: 13px; line-height: 1.45; }
+@media (max-width: 540px) {
+  .visual-evidence__heading { flex-wrap: wrap; }
+  .visual-editor__group { padding: 13px; }
+  .visual-editor__heading .button { width: 100%; }
+}
