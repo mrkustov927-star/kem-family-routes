@@ -431,6 +431,7 @@
       display.coordinateNote = display.coordinateNote.replace("Координата бюста", "Координата памятника");
     }
     if (record.id === "minin") display.facts = display.facts.map(fact => fact === "По данным картографического справочника, бронзовый памятник был установлен в 1960 году." ? "Местный краеведческий источник относит открытие к ноябрю 1960 года, а региональный перечень датирует памятник 1961 годом. Причину расхождения необходимо уточнить." : fact);
+    if (record.id === "research-20261101-pavlov-house") display.guideText = display.guideText.replace("дом В. С. Павлова", "дом С. И. Павлова");
     return display;
   }
 

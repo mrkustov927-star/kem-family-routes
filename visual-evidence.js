@@ -3,20 +3,20 @@ window.KEM_VISUAL_EVIDENCE = {
     "summary": "Снимок ниже показывает железнодорожное строительство в Кемь-пристани; облик вокзала в городе он не подтверждает.",
     "images": [
       {
-        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/Murmansk_Railway%2C_1916.jpg/960px-Murmansk_Railway%2C_1916.jpg",
-        "caption": "Строители Мурманской железной дороги на Кемь-пристани. Датировка источников расходится: 1915 или 1916 год. Это не фотография городского вокзала.",
-        "alt": "Строители Мурманской железной дороги на Кемь-пристани. Датировка источников расходится: 1915 или 1916 год. Это не фотография городского вокзала.",
-        "source": "https://commons.wikimedia.org/wiki/File:Murmansk_Railway,_1916.jpg",
-        "credit": "С. М. Прокудин-Горский / Library of Congress / Wikimedia Commons",
-        "license": "Общественное достояние",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+        "url": "https://tile.loc.gov/storage-services/service/pnp/ppem/01400/01445r.jpg",
+        "alt": "Группа участников железнодорожного строительства на Кемь-пристани, около 1915 года",
+        "caption": "Участники железнодорожного строительства на Кемь-пристани; Библиотека Конгресса датирует снимок 1915 годом. Это не фотография городского вокзала.",
+        "source": "https://www.loc.gov/pictures/item/2018679269/",
+        "credit": "С. М. Прокудин-Горский; цифровая цветная обработка Walt Frankhauser, WalterStudio; коллекция Библиотеки Конгресса",
+        "license": "Нет известных ограничений на публикацию",
+        "licenseUrl": "https://hdl.loc.gov/loc.pnp/res.237.prok"
       }
     ],
     "links": [
       {
         "label": "Библиотека Конгресса: карточка снимка",
         "url": "https://www.loc.gov/pictures/item/2018679269/",
-        "note": "В каталоге указан 1915 год; следует сверить оригинальный номер снимка."
+        "note": "Датировка и место приведены по музейному каталогу."
       }
     ],
     "next": "Уточнить автора и дату фотографии вокзала на обложке и найти снимок паровоза с разрешением автора."
@@ -752,13 +752,13 @@ window.KEM_VISUAL_EVIDENCE = {
     "summary": "Найдено каталожное описание брошюры 1896 года; её текст и обложка пока не просмотрены. Снимок ниже относится к строительству дороги значительно позже.",
     "images": [
       {
-        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/Murmansk_Railway%2C_1916.jpg/960px-Murmansk_Railway%2C_1916.jpg",
-        "caption": "Строители Мурманской железной дороги на Кемь-пристани. Датировка источников расходится: 1915 или 1916 год. Это не фотография городского вокзала.",
-        "alt": "Строители Мурманской железной дороги на Кемь-пристани. Датировка источников расходится: 1915 или 1916 год. Это не фотография городского вокзала.",
-        "source": "https://commons.wikimedia.org/wiki/File:Murmansk_Railway,_1916.jpg",
-        "credit": "С. М. Прокудин-Горский / Library of Congress / Wikimedia Commons",
-        "license": "Общественное достояние",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+        "url": "https://tile.loc.gov/storage-services/service/pnp/ppem/01400/01445r.jpg",
+        "alt": "Группа участников железнодорожного строительства на Кемь-пристани, около 1915 года",
+        "caption": "Участники железнодорожного строительства на Кемь-пристани; Библиотека Конгресса датирует снимок 1915 годом. Это не фотография городского вокзала.",
+        "source": "https://www.loc.gov/pictures/item/2018679269/",
+        "credit": "С. М. Прокудин-Горский; цифровая цветная обработка Walt Frankhauser, WalterStudio; коллекция Библиотеки Конгресса",
+        "license": "Нет известных ограничений на публикацию",
+        "licenseUrl": "https://hdl.loc.gov/loc.pnp/res.237.prok"
       }
     ],
     "links": [
