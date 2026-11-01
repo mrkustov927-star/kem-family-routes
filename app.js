@@ -411,7 +411,7 @@
       sources: listValue("sources"),
       researchPeriod: curated?.period || "",
       researchConfidence: curated?.confidence || "",
-      localCheck: curated?.localCheck || "",
+      localCheck: textValue("localCheck", ""),
       researchRevision: curated ? researchLibrary.revision : content.researchRevision || "",
       sharedStatus: record.status,
       createdBy: record.created_by,
@@ -1003,7 +1003,7 @@
       const curated = researchById.get(point.id);
       const guided = guidedPoints.find(item => item.id === point.id);
       const isReady = Boolean(curated) || point.status === "ready";
-      const canOpen = Boolean(guided);
+      const canOpen = Boolean(guided || state.sharedPointRecords.some(record => record.id === point.id));
       const summary = curated?.intro || point.summary || guided?.intro || "";
       const photo = allPhotos().find(item => item.pointId === point.id);
       const action = canOpen ? `<button class="plan-action" type="button" data-open-plan="${point.id}">Открыть карточку →</button>` : "";
@@ -1545,9 +1545,11 @@
   }
 
   function openPoint(pointId) {
-    const point = guidedPoints.find(item => item.id === pointId);
+    const guided = guidedPoints.find(item => item.id === pointId);
+    const pending = state.sharedPointRecords.find(item => item.id === pointId);
+    const point = guided || (pending ? sharedPointToDisplay(pending) : null);
     if (!point) return;
-    state.currentPointIndex = guidedPoints.indexOf(point);
+    if (guided) state.currentPointIndex = guidedPoints.indexOf(guided);
     highlightPoint(pointId);
     if (Array.isArray(point.coordinates)) {
       if (state.mapProvider === "yandex" && state.yandexReady) {
@@ -1581,7 +1583,7 @@
       <div class="dialog-actions">
         <button class="button button--ghost" type="button" data-add-photo-point="${point.id}">Добавить фото</button>
         <button class="button button--ghost" type="button" data-edit-point="${point.id}">${userIsAuthenticated() ? "Редактировать точку" : "Предложить правку"}</button>
-        <button class="button button--primary" type="button" data-complete-point="${point.id}">${state.completed.has(point.id) ? "Отметить непройденной" : "Точка пройдена"}</button>
+        ${guided ? `<button class="button button--primary" type="button" data-complete-point="${point.id}">${state.completed.has(point.id) ? "Отметить непройденной" : "Точка пройдена"}</button>` : ""}
       </div>`;
     if (!els.pointDialog.open) els.pointDialog.showModal();
   }
