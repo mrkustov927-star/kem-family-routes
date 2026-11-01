@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://tile.openstreetmap.org">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <link rel="stylesheet" href="./styles.css?v=20260724-9">
+  <link rel="stylesheet" href="./styles.css?v=20261101-1">
 </head>
 <body>
   <a class="skip-link" href="#main">Перейти к маршруту</a>
@@ -40,6 +40,7 @@
         <div class="hero__actions">
           <button class="button button--primary" id="startTourButton" type="button">Начать маршрут</button>
           <button class="button button--ghost" id="showListButton" type="button">Все точки</button>
+          <a class="button button--ghost reference-entry" href="./guide-reference.html">Справочник экскурсовода →</a>
         </div>
       </div>
       <figure class="hero__art">
@@ -115,6 +116,7 @@
             <button class="text-button" id="exitGuideButton" type="button">← К карте</button>
             <span class="guide-step" id="guideStep">Точка 1 из 10</span>
           </div>
+          <p class="guide-quick-link"><a href="./guide-reference.html">Справка о Кеми и округе →</a></p>
           <article id="guideContent"></article>
           <div class="guide-panel__actions">
             <button class="button button--ghost" id="previousPointButton" type="button">Назад</button>

@@ -1,0 +1,76 @@
+:root { color-scheme: light; }
+html { scroll-behavior: smooth; }
+.reference-page { background: #f5f6f2; color: #273b4c; }
+.reference-page .topbar { position: sticky; }
+.reference-page .topbar__back { display: inline-flex; align-items: center; min-height: 44px; color: #102a43; font-size: 14px; font-weight: 800; text-decoration: none; }
+.reference-page .topbar__back:hover { color: #d90912; }
+.reference-hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(260px, .85fr); gap: clamp(28px, 5vw, 72px); align-items: center; padding: clamp(48px, 7vw, 90px) clamp(20px, 7vw, 110px); background: linear-gradient(125deg, #fff 0%, #f8f6ef 60%, #e4f4fb 100%); }
+.reference-hero__copy { max-width: 740px; }
+.reference-hero h1 { max-width: 720px; font-size: clamp(42px, 6vw, 76px); line-height: .99; }
+.reference-hero h1 span { color: #d90912; }
+.reference-hero__lead { max-width: 660px; margin: 20px 0 0; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.65; }
+.reference-hero__note { margin: 18px 0 0; color: #526676; font-size: 14px; line-height: 1.6; }
+.reference-hero__image { margin: 0; }
+.reference-hero__image img { display: block; width: 100%; aspect-ratio: 4 / 3; border-radius: 22px; object-fit: cover; box-shadow: 0 18px 50px rgba(16, 42, 67, .17); }
+.reference-hero__image figcaption { margin-top: 8px; color: #526676; font-size: 12px; line-height: 1.4; }
+.reference-nav { display: flex; flex-wrap: wrap; gap: 9px; padding: 17px clamp(20px, 7vw, 110px); background: #102a43; }
+.reference-nav a { padding: 8px 12px; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; color: #fff; font-size: 13px; font-weight: 750; text-decoration: none; }
+.reference-nav a:hover, .reference-nav a:focus-visible { background: white; color: #102a43; }
+.reference-main { max-width: 1320px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 72px) 80px; }
+.reference-section { padding: 58px 0 10px; scroll-margin-top: 90px; }
+.reference-section__heading { max-width: 820px; margin-bottom: 26px; }
+.reference-section h2 { margin: 0 0 12px; color: #102a43; font-size: clamp(30px, 4vw, 48px); line-height: 1.08; letter-spacing: -.035em; }
+.reference-section h3 { margin: 0 0 10px; color: #102a43; font-size: 20px; line-height: 1.25; }
+.reference-section p, .reference-section li { font-size: 16px; line-height: 1.7; }
+.reference-section p { margin: 0 0 13px; }
+.reference-section a { color: #ad171e; text-underline-offset: 3px; }
+.reference-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.reference-grid--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.reference-card { min-width: 0; padding: 24px; border: 1px solid #e0e6e9; border-radius: 18px; background: #fff; }
+.reference-card > :last-child { margin-bottom: 0; }
+.reference-card--tint { background: #e8f1f7; border-color: #d0e1ec; }
+.reference-card--red { background: #fff1f1; border-color: #f3d8d9; }
+.reference-card__label { display: block; margin-bottom: 9px; color: #596f80; font-size: 12px; line-height: 1.4; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.reference-card__value { display: block; margin-bottom: 7px; color: #102a43; font-size: clamp(30px, 4vw, 44px); line-height: 1; letter-spacing: -.04em; }
+.reference-card__note { color: #536878; font-size: 14px !important; line-height: 1.55 !important; }
+.reference-callout { margin-top: 16px; padding: 20px 24px; border-left: 4px solid #d90912; border-radius: 4px 14px 14px 4px; background: #fff; }
+.reference-callout > :last-child { margin-bottom: 0; }
+.reference-timeline { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.reference-timeline li { display: grid; grid-template-columns: minmax(105px, 160px) 1fr; gap: 20px; padding: 18px 0; border-bottom: 1px solid #dce4e8; }
+.reference-timeline strong { color: #b31922; }
+.reference-timeline p { margin: 0; }
+.reference-list { margin: 10px 0 0; padding-left: 20px; }
+.reference-list li + li { margin-top: 6px; }
+.reference-sources { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.reference-sources li { padding: 15px 17px; border: 1px solid #e0e6e9; border-radius: 13px; background: #fff; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; scroll-margin-top: 90px; }
+.reference-sources strong { color: #102a43; }
+.reference-source { white-space: nowrap; font-size: .78em; vertical-align: super; }
+.reference-footer { padding: 32px clamp(20px, 7vw, 110px); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: center; color: #fff; background: #102a43; }
+.reference-footer a { color: #fff; font-weight: 800; text-underline-offset: 4px; }
+.reference-print { min-height: 44px; padding: 10px 16px; border: 1px solid #d8e0e5; border-radius: 12px; background: white; color: #102a43; font-weight: 800; }
+@media (max-width: 850px) {
+  .reference-hero { grid-template-columns: 1fr; }
+  .reference-hero__image img { max-height: 380px; }
+  .reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .reference-page .brand strong { font-size: 12px; }
+  .reference-page .brand small { font-size: 10px; }
+  .reference-page .topbar__back { font-size: 12px; }
+  .reference-hero { padding-top: 38px; }
+  .reference-hero h1 { font-size: 42px; }
+  .reference-grid, .reference-grid--two, .reference-sources { grid-template-columns: 1fr; }
+  .reference-section { padding-top: 45px; }
+  .reference-card { padding: 20px; }
+  .reference-timeline li { grid-template-columns: 1fr; gap: 4px; }
+}
+@media print {
+  .reference-page .topbar, .reference-nav, .reference-print { display: none; }
+  .reference-hero, .reference-main { padding: 0; }
+  .reference-hero__image { display: none; }
+  .reference-hero { display: block; background: none; }
+  .reference-section { padding-top: 24px; break-inside: auto; }
+  .reference-card, .reference-sources li, .reference-timeline li { break-inside: avoid; }
+  .reference-footer { color: #102a43; background: none; padding: 20px 0; }
+  .reference-footer a { color: #102a43; }
+}

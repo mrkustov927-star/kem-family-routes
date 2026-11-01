@@ -59,6 +59,9 @@ h1 span { color: var(--red); }
 .button--primary:hover { background: var(--red-dark); }
 .button--ghost { background: white; color: var(--navy); border-color: var(--line); }
 .button--ghost:hover { border-color: var(--navy); }
+.reference-entry { display: inline-flex; align-items: center; text-decoration: none; }
+.guide-quick-link { margin: -16px 0 24px; font-size: 14px; font-weight: 800; }
+.guide-quick-link a { color: var(--red); text-underline-offset: 3px; }
 
 .hero__art { position: relative; min-height: 300px; aspect-ratio: 3 / 2; margin: 0; overflow: hidden; border-radius: 34px 10px 34px 10px; background: #dfe8ec; box-shadow: 0 28px 70px rgba(16,42,67,.2); isolation: isolate; }
 .hero__art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(16,42,67,.02), rgba(16,42,67,.16)); pointer-events: none; }
