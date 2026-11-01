@@ -1613,8 +1613,10 @@
     row.dataset.visualImageRow = "";
     row.visualOriginal = image && typeof image === "object" ? { ...image } : {};
     const value = name => escapeHtml(row.visualOriginal[name] || "");
+    const preview = safeExternalUrl(row.visualOriginal.url);
     row.innerHTML = `
       <legend>Фотография или изображение</legend>
+      ${preview ? `<div class="visual-editor__preview"><img src="${escapeHtml(preview)}" alt="${escapeHtml(row.visualOriginal.alt || row.visualOriginal.caption || "Текущее изображение")}" loading="lazy"><span>Текущее изображение</span></div>` : ""}
       <label>Ссылка на изображение<input type="url" data-visual-field="url" value="${value("url")}" placeholder="https://..."></label>
       <label>Или загрузить с устройства<input type="file" data-visual-file accept="image/jpeg,image/png,image/webp"></label>
       <p class="form-note">JPG, PNG или WebP, до 10 МБ. Выбранный файл заменит изображение по ссылке.</p>
@@ -1673,6 +1675,7 @@
     (Array.isArray(evidence.links) ? evidence.links : []).forEach(addVisualLinkRow);
     if (els.pointDialog.open) els.pointDialog.close();
     els.visualEditorDialog.showModal();
+    els.visualEditorForm.scrollTop = 0;
   }
 
   function collectVisualEditor() {

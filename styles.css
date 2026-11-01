@@ -391,6 +391,8 @@ footer p { margin: 7px 0 0; color: #9eb3c0; }
 .visual-editor__rows { display: grid; gap: 12px; }
 .visual-editor__item { display: grid; gap: 13px; min-width: 0; margin: 0; padding: 16px; border: 1px solid #d6e1e3; border-radius: 12px; background: white; }
 .visual-editor__item legend { padding: 0 6px; color: var(--navy); font-size: 13px; font-weight: 850; }
+.visual-editor__preview { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
+.visual-editor__preview img { display: block; max-width: 180px; max-height: 120px; border-radius: 8px; object-fit: contain; background: #edf1f1; }
 .visual-editor__item details { padding: 12px; border: 1px solid #e0e8e9; border-radius: 10px; }
 .visual-editor__item details summary { color: #155c72; cursor: pointer; font-size: 13px; font-weight: 800; }
 .visual-editor__metadata { display: grid; gap: 12px; margin-top: 12px; }
