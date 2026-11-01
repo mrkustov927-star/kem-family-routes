@@ -1,4 +1,4 @@
-const CACHE_NAME = "kem-family-routes-v20261101-reference-3";
+const CACHE_NAME = "kem-family-routes-v20261101-reference-4";
 const APP_SHELL = [
   "./",
   "./index.html",

@@ -35,6 +35,21 @@ html { scroll-behavior: smooth; }
 .reference-card__note { color: #536878; font-size: 14px !important; line-height: 1.55 !important; }
 .reference-callout { margin-top: 16px; padding: 20px 24px; border-left: 4px solid #d90912; border-radius: 4px 14px 14px 4px; background: #fff; }
 .reference-callout > :last-child { margin-bottom: 0; }
+.reference-callout--first { margin: 0 0 18px; }
+.population-table-wrap { margin: 0 0 14px; overflow-x: auto; border: 1px solid #e0e6e9; border-radius: 18px; background: #fff; }
+.population-table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: left; }
+.population-table caption { padding: 18px 20px 8px; color: #102a43; text-align: left; font-weight: 800; }
+.population-table th, .population-table td { padding: 12px 20px; border-bottom: 1px solid #edf0f2; vertical-align: top; font-size: 14px; line-height: 1.45; overflow-wrap: break-word; }
+.population-table thead th { color: #596f80; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; }
+.population-table th:first-child { width: 13%; }
+.population-table th:nth-child(2) { width: 27%; }
+.population-table tbody th, .population-table td strong { color: #102a43; font-size: 16px; }
+.population-table tbody tr:last-child th, .population-table tbody tr:last-child td { border-bottom: 0; }
+.population-table__highlight { background: #fff1f1; }
+.population-bar { display: block; height: 7px; margin-top: 7px; overflow: hidden; border-radius: 10px; background: #e8eef1; }
+.population-bar i { display: block; width: var(--population-width); height: 100%; border-radius: inherit; background: #3366cc; }
+.population-table__highlight .population-bar i { background: #d90912; }
+.population-note { color: #526676; font-size: 14px !important; line-height: 1.6 !important; }
 .reference-timeline { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
 .reference-timeline li { display: grid; grid-template-columns: minmax(105px, 160px) 1fr; gap: 20px; padding: 18px 0; border-bottom: 1px solid #dce4e8; }
 .reference-timeline strong { color: #b31922; }
@@ -62,6 +77,11 @@ html { scroll-behavior: smooth; }
   .reference-grid, .reference-grid--two, .reference-sources { grid-template-columns: 1fr; }
   .reference-section { padding-top: 45px; }
   .reference-card { padding: 20px; }
+  .population-table caption { padding: 16px 12px 8px; }
+  .population-table th, .population-table td { padding: 10px 8px; font-size: 13px; }
+  .population-table th:first-child { width: 16%; }
+  .population-table th:nth-child(2) { width: 28%; }
+  .population-table tbody th, .population-table td strong { font-size: 14px; }
   .reference-timeline li { grid-template-columns: 1fr; gap: 4px; }
 }
 @media print {
