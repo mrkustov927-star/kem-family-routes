@@ -1,4 +1,4 @@
-const CACHE_NAME = "kem-family-routes-v20261101-reference-4";
+const CACHE_NAME = "kem-family-routes-v20261101-visual-1";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -7,6 +7,7 @@ const APP_SHELL = [
   "./styles.css",
   "./points.js",
   "./research-cards.js",
+  "./visual-evidence.js",
   "./photos.js",
   "./route-geometry.js",
   "./supabase-config.js",

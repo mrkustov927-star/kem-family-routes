@@ -386,7 +386,7 @@
     const hasCoordinates = Number.isFinite(record.latitude) && Number.isFinite(record.longitude);
     const defaultImage = normalizeDefaultPointImage(content.image || existing?.defaultImage || existing?.image || "");
     const defaultImageAlt = content.imageAlt || existing?.defaultImageAlt || existing?.imageAlt || "Точка экскурсионного маршрута";
-    return {
+    const display = {
       id: record.id,
       number: record.route_order ?? existing?.number ?? "+",
       chapter: record.chapter || existing?.chapter || curated?.chapter || "railway",
@@ -417,6 +417,21 @@
       createdBy: record.created_by,
       isShared: true
     };
+    // Correct only the specific previously recorded phrases; later user edits take precedence.
+    if (record.id === "pomor-house") {
+      display.facts = display.facts.map(fact => fact === "В 2020 году дом передан музею «Поморье» и стал музейным объектом «Дом помора»."
+        ? "Национальный музей Карелии сообщает, что здание появилось у музея в 2020 году; «Культура.РФ» указывает 2021 год передачи в оперативное управление. Документы следует сверить." : fact);
+      display.guideText = display.guideText.replace("В 2020 году здание передали музею; сегодня это «Дом помора»", "Национальный музей Карелии сообщает, что здание появилось у музея в 2020 году; «Культура.РФ» указывает 2021 год передачи в оперативное управление. Документы следует сверить. Сегодня это «Дом помора»");
+      if (!display.sources.some(source => source.url === "https://www.culture.ru/institutes/83615/dom-pomora")) display.sources = [...display.sources, { title: "Культура.РФ: Дом помора", url: "https://www.culture.ru/institutes/83615/dom-pomora" }];
+    }
+    if (record.id === "new-school") display.sources = display.sources.map(source => source.url === "https://gov10.ru/news/02-09-2024-artur-parfenchikov-otkryl-novuyu-shkolu-v-kemi/" ? { ...source, url: source.url + "?special_version=Y" } : source);
+    if (record.id === "library-lenin") {
+      display.facts = display.facts.map(fact => fact === "В центре Кеми установлен бюст Владимира Ленина." ? "В центре Кеми установлен памятник Владимиру Ленину." : fact);
+      display.show = display.show.replace("Показать бюст", "Показать памятник");
+      display.coordinateNote = display.coordinateNote.replace("Координата бюста", "Координата памятника");
+    }
+    if (record.id === "minin") display.facts = display.facts.map(fact => fact === "По данным картографического справочника, бронзовый памятник был установлен в 1960 году." ? "Местный краеведческий источник относит открытие к ноябрю 1960 года, а региональный перечень датирует памятник 1961 годом. Причину расхождения необходимо уточнить." : fact);
+    return display;
   }
 
   function applySharedWorkspace(workspace) {
@@ -1544,6 +1559,28 @@
     }
   }
 
+  function visualEvidence(pointId) {
+    const evidence = window.KEM_VISUAL_EVIDENCE?.[pointId];
+    if (!evidence) return "";
+    const figures = (evidence.images || []).filter(item => safeExternalUrl(item.url) && safeExternalUrl(item.source)).map(item => `
+      <figure class="visual-evidence__figure">
+        <img src="${escapeHtml(safeExternalUrl(item.url))}" alt="${escapeHtml(item.alt)}" loading="lazy" decoding="async">
+        <p class="visual-evidence__unavailable" hidden>Изображение временно недоступно. Его можно открыть по ссылке на источник ниже.</p>
+        <figcaption>
+          <strong>${escapeHtml(item.caption)}</strong>
+          <span>${escapeHtml(item.credit)} · <a href="${escapeHtml(safeExternalUrl(item.source))}" target="_blank" rel="noopener noreferrer">источник изображения</a>${safeExternalUrl(item.licenseUrl) ? ` · <a href="${escapeHtml(safeExternalUrl(item.licenseUrl))}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.license)}</a>` : ""}</span>
+        </figcaption>
+      </figure>`).join("");
+    const links = (evidence.links || []).filter(item => safeExternalUrl(item.url)).map(item => `<li><a href="${escapeHtml(safeExternalUrl(item.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.label)}</a>${item.note ? ` — ${escapeHtml(item.note)}` : ""}</li>`).join("");
+    return `<section class="visual-evidence" aria-label="Фото и документы">
+      <h3>Фото и документы</h3>
+      <p>${escapeHtml(evidence.summary)}</p>
+      ${figures ? `<div class="visual-evidence__grid">${figures}</div>` : ""}
+      ${links ? `<ul class="visual-evidence__links">${links}</ul>` : ""}
+      ${evidence.next ? `<p class="visual-evidence__next"><strong>Что ещё найти или проверить:</strong> ${escapeHtml(evidence.next)}</p>` : ""}
+    </section>`;
+  }
+
   function openPoint(pointId) {
     const guided = guidedPoints.find(item => item.id === pointId);
     const pending = state.sharedPointRecords.find(item => item.id === pointId);
@@ -1575,6 +1612,7 @@
       <div class="dialog-visual${point.coverImage ? " dialog-visual--custom" : ""}"><img src="${escapeHtml(point.image)}" alt="${escapeHtml(point.imageAlt)}">${coverActions}</div>
       <h3>Короткие факты</h3>
       <ul class="fact-list">${point.facts.map(fact => `<li>${escapeHtml(fact)}</li>`).join("")}</ul>
+      ${visualEvidence(point.id)}
       <h3>Рассказ юного экскурсовода</h3><p class="guide-script">${escapeHtml(point.guideText)}</p>
       <h3>Что показать</h3><p>${escapeHtml(point.show)}</p>
       <h3>Вопрос семье</h3><p>${escapeHtml(point.familyQuestion)}</p>
@@ -1585,6 +1623,12 @@
         <button class="button button--ghost" type="button" data-edit-point="${point.id}">${userIsAuthenticated() ? "Редактировать точку" : "Предложить правку"}</button>
         ${guided ? `<button class="button button--primary" type="button" data-complete-point="${point.id}">${state.completed.has(point.id) ? "Отметить непройденной" : "Точка пройдена"}</button>` : ""}
       </div>`;
+    els.pointDialogContent.querySelectorAll(".visual-evidence__figure img").forEach(img => {
+      img.addEventListener("error", () => {
+        img.hidden = true;
+        img.nextElementSibling.hidden = false;
+      }, { once: true });
+    });
     if (!els.pointDialog.open) els.pointDialog.showModal();
   }
 
