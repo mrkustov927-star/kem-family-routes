@@ -11,7 +11,7 @@ html { scroll-behavior: smooth; }
 .reference-hero__lead { max-width: 660px; margin: 20px 0 0; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.65; }
 .reference-hero__note { margin: 18px 0 0; color: #526676; font-size: 14px; line-height: 1.6; }
 .reference-hero__image { margin: 0; }
-.reference-hero__image img { display: block; width: 100%; aspect-ratio: 4 / 3; border-radius: 22px; object-fit: cover; box-shadow: 0 18px 50px rgba(16, 42, 67, .17); }
+.reference-hero__image img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: 22px; object-fit: cover; box-shadow: 0 18px 50px rgba(16, 42, 67, .17); }
 .reference-hero__image figcaption { margin-top: 8px; color: #526676; font-size: 12px; line-height: 1.4; }
 .reference-nav { display: flex; flex-wrap: wrap; gap: 9px; padding: 17px clamp(20px, 7vw, 110px); background: #102a43; }
 .reference-nav a { padding: 8px 12px; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; color: #fff; font-size: 13px; font-weight: 750; text-decoration: none; }
