@@ -2063,7 +2063,15 @@
     if (!community || !state.community.available) return;
     if (!quiet) setSyncStatus("loading", "Синхронизация");
     try {
-      if (seed && userIsAuthenticated()) await community.seedPoints(pointSeedRecords());
+      if (seed && userIsAuthenticated()) {
+        try {
+          await community.seedPoints(pointSeedRecords());
+        } catch (seedError) {
+          // A failed optional import must not prevent existing shared cards from loading.
+          console.error("Initial point import failed", seedError);
+          showToast("Не удалось добавить исходные точки; загружаем сохранённые карточки");
+        }
+      }
       const workspace = await community.fetchWorkspace();
       state.community = community.current();
       applySharedWorkspace(workspace);
