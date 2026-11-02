@@ -1825,6 +1825,11 @@
     const auth = state.community || {};
     const authenticated = Boolean(auth.authenticated);
     const passwordRecovery = Boolean(auth.passwordRecovery);
+    const locked = !authenticated || passwordRecovery;
+    const wasLocked = document.body.classList.contains("access-locked");
+    document.body.classList.toggle("access-locked", locked);
+    if (locked && !els.authDialog.open) els.authDialog.showModal();
+    if (!locked && wasLocked && els.authDialog.open) els.authDialog.close();
     els.authSignedOut.hidden = authenticated || passwordRecovery;
     els.authRecovery.hidden = !passwordRecovery;
     els.authSignedIn.hidden = !authenticated || passwordRecovery;
@@ -2217,6 +2222,14 @@
   els.syncStatus.addEventListener("click", () => {
     showToast(els.syncStatus.dataset.message || "Состояние общей карты");
   });
+  els.authDialog.addEventListener("cancel", event => {
+    if (document.body.classList.contains("access-locked")) event.preventDefault();
+  });
+  els.authDialog.addEventListener("close", () => {
+    if (document.body.classList.contains("access-locked")) {
+      window.setTimeout(() => { if (!els.authDialog.open) els.authDialog.showModal(); }, 0);
+    }
+  });
   els.authForm.addEventListener("submit", async event => {
     event.preventDefault();
     const email = document.querySelector("#authEmail").value.trim();
@@ -2232,7 +2245,7 @@
       await community.signIn(email, password);
       state.community = community.current();
       renderAuthState();
-      els.authDialog.close();
+      if (els.authDialog.open) els.authDialog.close();
       showToast("Вход выполнен. Открыта общая редакционная карта");
     } catch (error) {
       showToast(error.message || "Не удалось войти");
@@ -2299,7 +2312,7 @@
       document.querySelector("#newAuthPassword").value = "";
       document.querySelector("#confirmAuthPassword").value = "";
       renderAuthState();
-      els.authDialog.close();
+      if (els.authDialog.open) els.authDialog.close();
       showToast("Пароль изменён. Вы вошли в свою учётную запись");
     } catch (error) {
       showToast(error.message || "Не удалось изменить пароль");
@@ -2313,8 +2326,8 @@
       await community.signOut();
       state.community = community.current();
       renderAuthState();
-      els.authDialog.close();
-      showToast("Вы вышли. Карта открыта в режиме просмотра");
+      if (els.authDialog.open && !document.body.classList.contains("access-locked")) els.authDialog.close();
+      showToast("Вы вышли из учётной записи");
     } catch (error) {
       showToast(error.message || "Не удалось выйти");
     }
@@ -2717,6 +2730,7 @@
   renderRouteIssues();
   renderCoordinateDrafts();
   initMap();
+  renderAuthState();
   initializeCommunity();
   updatePasswordResetCooldown();
 

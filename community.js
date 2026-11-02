@@ -104,6 +104,7 @@
     if (!client) throw new Error("Подключение к общей базе недоступно");
     const { error } = await client.auth.signInWithPassword({ email, password });
     if (error) throw normalizeError(error, "Не удалось войти");
+    await refreshSession();
   }
 
   async function sendMagicLink(email) {
