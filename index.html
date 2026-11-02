@@ -318,6 +318,11 @@
       </div>
     </form>
   </dialog>
+  <script>
+    // Keep the sign-in form visible while the application and session load.
+    const initialAuthDialog = document.getElementById("authDialog");
+    if (initialAuthDialog && !initialAuthDialog.open) initialAuthDialog.showModal();
+  </script>
 
   <dialog class="shared-point-dialog" id="sharedPointDialog">
     <form class="dialog-shell edit-form shared-point-form" id="sharedPointForm">
@@ -400,7 +405,7 @@
   <script src="./photos.js"></script>
   <script src="./route-geometry.js"></script>
   <script src="./supabase-config.js?v=20260718-2"></script>
-  <script src="./community.js?v=20261101-visual-edit-1"></script>
-  <script src="./app.js?v=20261101-visual-edit-2"></script>
+  <script src="./community.js?v=20261102-access-fix-2"></script>
+  <script src="./app.js?v=20261102-access-fix-2"></script>
 </body>
 </html>

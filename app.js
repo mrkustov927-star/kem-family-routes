@@ -2721,6 +2721,10 @@
   renderCoordinatePointOptions();
   document.querySelector("#coordinatePoint").addEventListener("change", updateCoordinatePointMode);
 
+  renderAuthState();
+  initializeCommunity();
+  updatePasswordResetCooldown();
+
   renderFilters();
   renderPoints();
   renderPlanFilters();
@@ -2730,9 +2734,6 @@
   renderRouteIssues();
   renderCoordinateDrafts();
   initMap();
-  renderAuthState();
-  initializeCommunity();
-  updatePasswordResetCooldown();
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
