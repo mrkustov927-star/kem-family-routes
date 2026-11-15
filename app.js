@@ -1225,7 +1225,7 @@
     els.photoStrip.innerHTML = allPhotos()
       .filter(photo => pointIsOnSelectedRoute(photo.pointId))
       .sort((a, b) => routeOrder.get(a.pointId) - routeOrder.get(b.pointId))
-      .map(photo => `<button class="photo-card${photo.isDraft ? " photo-card--draft" : ""}" type="button" data-photo-id="${escapeHtml(photo.id)}"><img src="${escapeHtml(photo.src)}" alt="${escapeHtml(photo.alt || photo.title)}" loading="lazy" decoding="async"><span class="photo-card__copy"><span>${photo.isDraft ? "Черновик" : `Точка ${escapeHtml(photoPointDetails(photo.pointId)?.number ?? "—")}`}</span><strong>${escapeHtml(photo.title)}</strong><small>${escapeHtml(photo.date || "Дата уточняется")}</small><small class="photo-card__caption">${escapeHtml(photo.caption || "")}</small><small class="photo-card__author">Автор: ${escapeHtml(photo.author || "Не указан")}</small></span></button>`).join("");
+      .map(photo => `<button class="photo-card${photo.isDraft ? " photo-card--draft" : ""}" type="button" data-photo-id="${escapeHtml(photo.id)}"><span class="photo-card__preview"><img src="${escapeHtml(photo.src)}" alt="${escapeHtml(photo.alt || photo.title)}" loading="lazy" decoding="async"></span><span class="photo-card__copy"><span>${photo.isDraft ? "Черновик" : `Точка ${escapeHtml(photoPointDetails(photo.pointId)?.number ?? "—")}`}</span><strong>${escapeHtml(photo.title)}</strong><small>${escapeHtml(photo.date || "Дата уточняется")}</small><small class="photo-card__caption">${escapeHtml(photo.caption || "")}</small><small class="photo-card__author">Автор: ${escapeHtml(photo.author || "Не указан")}</small></span></button>`).join("");
   }
 
   function openPhoto(photoId) {
