@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#e21f26">
-  <meta name="description" content="Интерактивный помощник юного экскурсовода по Кеми">
+  <meta name="description" content="Материалы для экскурсий по Кеми: история мест, факты и даты, фотографии, документы и ссылки на источники.">
   <title>Семейные маршруты по Кеми с Первыми</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://tile.openstreetmap.org">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <link rel="stylesheet" href="./styles.css?v=20261101-visual-edit-2">
+  <link rel="stylesheet" href="./styles.css?v=20261115-content-1">
   <style>body.access-locked > :not(#authDialog):not(#toast):not(script){visibility:hidden;pointer-events:none} body.access-locked #authDialog .dialog-close{display:none}</style>
 </head>
 <body class="access-locked">
@@ -37,7 +37,7 @@
       <div class="hero__content">
         <p class="eyebrow">Маршрут-помощник · тестовая версия</p>
         <h1>Город говорит.<br><span>Мы помогаем услышать.</span></h1>
-        <p class="hero__lead">Карта, короткие подсказки и вопросы для семейной экскурсии по Кеми.</p>
+        <p class="hero__lead">История Кеми на карте: тексты экскурсий, факты и даты, фотографии, документы и источники.</p>
         <div class="hero__actions">
           <button class="button button--primary" id="startTourButton" type="button">Начать маршрут</button>
           <button class="button button--ghost" id="showListButton" type="button">Все точки</button>
@@ -143,7 +143,7 @@
         <div>
           <p class="eyebrow">Вся экскурсия</p>
           <h2 id="routePlanTitle">Темы большого маршрута</h2>
-          <p>Подготовленные карточки содержат проверяемые факты, полный рассказ юного экскурсовода, вопросы семье, правила безопасности и источники. Новые точки из общей карты добавляются в этот список автоматически.</p>
+          <p>В карточках — подробные тексты для экскурсии, история мест и людей, факты и даты, фотографии, документы и ссылки на источники. Вопросы и задания помогают обсудить увиденное на маршруте.</p>
         </div>
         <div class="readiness" aria-label="Готовность материалов">
           <strong id="readyCount">10</strong><span id="readyLabel">карточек готовы</span>
@@ -155,9 +155,9 @@
     </section>
 
     <section class="principles" aria-label="Возможности проекта">
-      <article><span>01</span><h3>Под рукой</h3><p>Короткий текст, который удобно читать с телефона на маршруте.</p></article>
-      <article><span>02</span><h3>Живая история</h3><p>Вопросы семье, места показа и бережные подсказки юному гиду.</p></article>
-      <article><span>03</span><h3>Общее дело</h3><p>Ребята предлагают правки, а редактор проверяет факты перед публикацией.</p></article>
+      <article><span>01</span><h3>Тексты экскурсий</h3><p>Подробные рассказы о местах, событиях и людях Кеми для подготовки и проведения экскурсии.</p></article>
+      <article><span>02</span><h3>Факты и даты</h3><p>История зданий, биографии и хронология событий со ссылками на источники.</p></article>
+      <article><span>03</span><h3>Фото и документы</h3><p>Современные и исторические изображения, архивные материалы и ссылки на оригиналы.</p></article>
     </section>
   </main>
 
@@ -176,7 +176,7 @@
       <p class="muted">Черновик сохранится на этом устройстве. Его можно выгрузить и передать редактору маршрута.</p>
       <input type="hidden" id="editPointId" name="pointId">
       <label>Точка маршрута<input id="editPointName" name="pointName" readonly></label>
-      <label>Что предлагаете изменить?<select id="editField" name="field" required><option value="">Выберите</option><option value="fact">Факт</option><option value="guide">Текст экскурсовода</option><option value="show">Место показа</option><option value="photo">Фотография</option><option value="coordinate">Координата</option><option value="other">Другое</option></select></label>
+      <label>Что предлагаете изменить?<select id="editField" name="field" required><option value="">Выберите</option><option value="fact">Факт</option><option value="guide">Текст экскурсии</option><option value="show">Место показа</option><option value="photo">Фотография</option><option value="coordinate">Координата</option><option value="other">Другое</option></select></label>
       <label>Новый текст<textarea id="editText" name="text" rows="6" required placeholder="Напишите точную формулировку"></textarea></label>
       <label>Источник или пояснение<textarea id="editSource" name="source" rows="3" placeholder="Ссылка, книга, архив, рассказ краеведа…"></textarea></label>
       <label>Ваше имя<input id="editAuthor" name="author" autocomplete="name" placeholder="Необязательно"></label>
@@ -351,7 +351,7 @@
       <label>Короткое вступление<textarea id="sharedPointIntro" name="intro" rows="3"></textarea></label>
       <label>Факты — по одному в каждой строке<textarea id="sharedPointFacts" name="facts" rows="6"></textarea></label>
       <label>Что показать<textarea id="sharedPointShow" name="show" rows="3"></textarea></label>
-      <label>Текст экскурсовода<textarea id="sharedPointGuideText" name="guideText" rows="6"></textarea></label>
+      <label>Текст экскурсии<textarea id="sharedPointGuideText" name="guideText" rows="10" placeholder="История места, события, даты, люди и интересные детали. Разделяйте абзацы пустой строкой; ссылки добавляйте в поле «Источники»."></textarea></label>
       <label>Вопрос семье<textarea id="sharedPointFamilyQuestion" name="familyQuestion" rows="3"></textarea></label>
       <label>Безопасность<textarea id="sharedPointSafety" name="safety" rows="3"></textarea></label>
       <label>Источники — строка в формате «Название | ссылка»<textarea id="sharedPointSources" name="sources" rows="4" placeholder="Музей «Поморье» | https://example.ru"></textarea></label>
@@ -400,12 +400,13 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.7/dist/umd/supabase.min.js"></script>
   <script src="./points.js"></script>
-  <script src="./research-cards.js?v=20261101-visual-1"></script>
+   <script src="./research-cards.js?v=20261115-content-1"></script>
   <script src="./visual-evidence.js?v=20261101-2"></script>
   <script src="./photos.js"></script>
   <script src="./route-geometry.js"></script>
   <script src="./supabase-config.js?v=20260718-2"></script>
   <script src="./community.js?v=20261102-access-fix-2"></script>
-  <script src="./app.js?v=20261102-access-fix-2"></script>
+  <script src="./app.js?v=20261115-content-1"></script>
 </body>
 </html>
+

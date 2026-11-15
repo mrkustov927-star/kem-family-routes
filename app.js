@@ -411,7 +411,7 @@
       intro: textValue("intro", "Материал по этой точке собирается участниками проекта."),
       facts: listValue("facts"),
       show: textValue("show", "Уточните место показа на местности."),
-      guideText: textValue("guideText", "Добавьте проверенный рассказ экскурсовода."),
+      guideText: textValue("guideText", "Добавьте текст экскурсии с фактами, датами и ссылками на источники."),
       familyQuestion: textValue("familyQuestion", "Что в этом месте кажется вам самым важным?"),
       safety: textValue("safety", "Выберите безопасное место остановки группы."),
       sources: listValue("sources"),
@@ -423,6 +423,10 @@
       createdBy: record.created_by,
       isShared: true
     };
+    // Apply editorial updates only to the exact previous text, preserving participants' edits.
+    if (curated?.previousGuideText && display.guideText === curated.previousGuideText) {
+      display.guideText = curated.guideText;
+    }
     // Correct only the specific previously recorded phrases; later user edits take precedence.
     if (record.id === "pomor-house") {
       display.facts = display.facts.map(fact => fact === "В 2020 году дом передан музею «Поморье» и стал музейным объектом «Дом помора»."
@@ -1799,26 +1803,31 @@
       ${researchMeta}
       <p class="lead">${escapeHtml(point.intro)}</p>
       <div class="dialog-visual${point.coverImage ? " dialog-visual--custom" : ""}"><img src="${escapeHtml(point.image)}" alt="${escapeHtml(point.imageAlt)}">${coverActions}</div>
-      <h3>Короткие факты</h3>
+      <h3>Текст экскурсии</h3><p class="guide-script">${escapeHtml(point.guideText)}</p>
+      <h3>Факты и даты</h3>
       <ul class="fact-list">${point.facts.map(fact => `<li>${escapeHtml(fact)}</li>`).join("")}</ul>
       ${visualEvidence(point.id)}
-      <h3>Рассказ юного экскурсовода</h3><p class="guide-script">${escapeHtml(point.guideText)}</p>
+      <h3>Источники</h3><ul class="source-list">${sourceList(point)}</ul>
       <h3>Что показать</h3><p>${escapeHtml(point.show)}</p>
       <h3>Вопрос семье</h3><p>${escapeHtml(point.familyQuestion)}</p>
       <h3>Важно</h3><p>${escapeHtml(point.safety)}</p>
-      <details><summary>Координата, источники и дальнейшая проверка</summary><p class="muted">${escapeHtml(point.coordinateNote)}</p>${point.localCheck ? `<p class="research-note"><strong>Что ещё проверить:</strong> ${escapeHtml(point.localCheck)}</p>` : ""}<ul class="source-list">${sourceList(point)}</ul></details>
+      <details><summary>Редакционные заметки и проверка координат</summary><p class="muted">${escapeHtml(point.coordinateNote)}</p>${point.localCheck ? `<p class="research-note"><strong>Что ещё проверить:</strong> ${escapeHtml(point.localCheck)}</p>` : ""}</details>
       <div class="dialog-actions">
         <button class="button button--ghost" type="button" data-add-photo-point="${point.id}">Добавить фото</button>
         <button class="button button--ghost" type="button" data-edit-point="${point.id}">${userIsAuthenticated() ? "Редактировать точку" : "Предложить правку"}</button>
         ${guided ? `<button class="button button--primary" type="button" data-complete-point="${point.id}">${state.completed.has(point.id) ? "Отметить непройденной" : "Точка пройдена"}</button>` : ""}
       </div>`;
-    els.pointDialogContent.querySelectorAll(".visual-evidence__figure img").forEach(img => {
+    bindEvidenceImageFallbacks(els.pointDialogContent);
+    if (!els.pointDialog.open) els.pointDialog.showModal();
+  }
+
+  function bindEvidenceImageFallbacks(container) {
+    container.querySelectorAll(".visual-evidence__figure img").forEach(img => {
       img.addEventListener("error", () => {
         img.hidden = true;
         img.nextElementSibling.hidden = false;
       }, { once: true });
     });
-    if (!els.pointDialog.open) els.pointDialog.showModal();
   }
 
   function renderAuthState() {
@@ -2021,15 +2030,19 @@
         ${point.researchPeriod ? `<p class="point-research-meta"><span><strong>Период:</strong> ${escapeHtml(point.researchPeriod)}</span></p>` : ""}
         <p class="lead">${escapeHtml(point.intro)}</p>
         <div class="guide-blocks">
+          <section class="guide-block guide-block--script"><h3>Текст экскурсии</h3><p class="guide-script">${escapeHtml(point.guideText)}</p></section>
+          <section class="guide-block guide-block--script"><h3>Факты и даты</h3><ul class="fact-list">${point.facts.map(fact => `<li>${escapeHtml(fact)}</li>`).join("")}</ul></section>
           <section class="guide-block"><h3>Что показать</h3><p>${escapeHtml(point.show)}</p></section>
-          <section class="guide-block guide-block--script"><h3>Как рассказать</h3><p>${escapeHtml(point.guideText)}</p></section>
           <section class="guide-block"><h3>Спросить семью</h3><p>${escapeHtml(point.familyQuestion)}</p></section>
           <section class="guide-block"><h3>Безопасность</h3><p>${escapeHtml(point.safety)}</p></section>
         </div>
-        <details class="guide-reference"><summary>Опорные факты, источники и проверка</summary><ul class="fact-list">${point.facts.map(fact => `<li>${escapeHtml(fact)}</li>`).join("")}</ul>${point.localCheck ? `<p class="research-note"><strong>Что ещё проверить:</strong> ${escapeHtml(point.localCheck)}</p>` : ""}<ul class="source-list">${sourceList(point)}</ul></details>
+        ${visualEvidence(point.id)}
+        <section class="guide-reference"><h3>Источники</h3><ul class="source-list">${sourceList(point)}</ul></section>
+        ${point.localCheck ? `<details class="guide-reference"><summary>Редакционные заметки</summary><p class="research-note"><strong>Что ещё проверить:</strong> ${escapeHtml(point.localCheck)}</p></details>` : ""}
         <p><button class="text-button" type="button" data-edit-point="${point.id}">Есть уточнение? Предложить правку →</button></p>
       </div>
     </div>`;
+    bindEvidenceImageFallbacks(els.guideContent);
     document.querySelector("#previousPointButton").disabled = state.currentPointIndex === 0;
     document.querySelector("#nextPointButton").textContent = state.currentPointIndex === guidedPoints.length - 1 ? "Завершить маршрут" : "Следующая точка";
   }
@@ -2744,3 +2757,4 @@
     });
   }
 })();
+
