@@ -1,4 +1,23 @@
 :root { color-scheme: light; }
+.heraldry-grid { align-items: stretch; }
+.heraldry-card { display: flex; flex-direction: column; }
+.heraldry-status { align-self: flex-start; margin: 0 0 12px; padding: 5px 9px; border-radius: 7px; background: #e8f1f7; color: #234963; font-size: 11px; line-height: 1.35; font-weight: 800; }
+.heraldry-status--project { background: #f8edcf; color: #70531a; }
+.heraldry-figure { min-width: 0; margin: 4px 0 18px; }
+.heraldry-image { display: flex; align-items: center; justify-content: center; min-height: 238px; padding: 15px; border-radius: 12px; background: #fafbf9; }
+.heraldry-image img { display: block; width: auto; height: auto; max-width: 100%; max-height: 210px; object-fit: contain; }
+.heraldry-image--pair { gap: 14px; }
+.heraldry-image--pair a { display: flex; flex: 1 1 0; min-width: 0; align-items: center; justify-content: center; }
+.heraldry-image--pair img { max-height: 180px; }
+.heraldry-figure figcaption { margin-top: 10px; color: #596f80; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.heraldry-card > p { margin-top: auto; }
+.heraldry-history-note { margin: 18px 0 0 !important; color: #526676; font-size: 14px !important; }
+.heraldry-credit { margin-top: 16px !important; }
+@media print {
+  .heraldry-figure { break-inside: avoid; }
+  .heraldry-image { min-height: 180px; background: none; }
+  .heraldry-image img { max-height: 170px; }
+}
 html { scroll-behavior: smooth; }
 .reference-page { background: #f5f6f2; color: #273b4c; }
 .reference-page .topbar { position: sticky; }
@@ -94,3 +113,4 @@ html { scroll-behavior: smooth; }
   .reference-footer { color: #102a43; background: none; padding: 20px 0; }
   .reference-footer a { color: #102a43; }
 }
+
