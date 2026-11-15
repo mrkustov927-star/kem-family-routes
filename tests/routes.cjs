@@ -52,10 +52,20 @@ assert(api.els.routeOverviewContent.innerHTML.includes('порядок тема�
 for (const topic of ['Лихачёв','Пономарёв','Зосимо-Савватиевский','судоверф','Ужма','жемчужниц','Подужем','телеграф','Державин','артел']) {
   assert(api.els.routeOverviewContent.innerHTML.toLowerCase().includes(topic.toLowerCase()), 'Missing route theme: '+topic);
 }
+const cathedralRoute=context.window.KEM_ROUTES.find(route=>route.id==='annunciation-assumption');
+const interventionSections=cathedralRoute.overview.stops.flatMap(stop=>stop.sections||[]).filter(section=>section.id?.startsWith('intervention-'));
+assert.equal(interventionSections.length,12);
+assert.equal(new Set(interventionSections.map(section=>section.id)).size,12);
+assert(interventionSections.every(section=>section.paragraphs.length && section.sources.length && section.sources.every(source=>new URL(source.url).protocol==='https:')));
+for(const phrase of ['Вудс','24 июля 1918','18 февраля 1919','Филиппа Вудса','Каменев','Royal Museums Greenwich','1938–1939','22 сентября — 12 октября'])assert(api.els.routeOverviewContent.innerHTML.includes(phrase),'Missing intervention material: '+phrase);
 for (const id of ['krestovsky-prospect','kem-fortress','mill-street','malyshev-street']) {
   const p=api.selectedRoutePoints().find(p=>p.id===id);assert(p);assert.equal(p.coordinates,null);
 }
 api.openPoint('slon-office');assert(api.els.pointDialogContent.innerHTML.includes('Лихачёв'));
+assert(api.els.pointDialogContent.innerHTML.includes('Два разных времени'));
+api.openPoint('humpback-bridge');assert(api.els.pointDialogContent.innerHTML.includes('Кемь глазами Вудса'));
+api.openPoint('revolution-square');assert(api.els.pointDialogContent.innerHTML.includes('Что сообщила делегация'));
+api.openPoint('slon-office');
 api.renderGuide();assert(api.els.guideContent.innerHTML.includes('Лихачёв'));
 api.selectRoute('main');api.openPoint('slon-office');
 assert(!api.els.pointDialogContent.innerHTML.includes('Темы этого маршрута'),'Route supplements do not alter the general card');
