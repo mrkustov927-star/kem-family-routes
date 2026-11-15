@@ -1,7 +1,7 @@
 window.KEM_ROUTE = {
   title: "Семейные маршруты по Кеми с Первыми",
   version: "0.2.0",
-  updatedAt: "2026-07-17",
+  updatedAt: "2026-11-15",
   disclaimer: "Тестовый фрагмент маршрута. Точки с отметкой needs-check требуют полевой проверки координат и формулировок.",
   chapters: [
     { id: "railway", title: "От вокзала к городу" },
@@ -52,7 +52,11 @@ window.KEM_ROUTE = {
     { number: 39, id: "stadium", title: "Городской стадион", chapter: "river", status: "research" },
     { number: 40, id: "mass-grave", title: "Братская могила на Береговой и старое кладбище", chapter: "river", status: "research" },
     { number: 41, id: "golodnukha", title: "Улица Мосорина и гора «Голоднуха»", chapter: "river", status: "research" },
-    { number: 42, id: "assumption-cathedral", title: "Успенский собор", chapter: "river", status: "ready" }
+    { number: 42, id: "assumption-cathedral", title: "Успенский собор", chapter: "river", status: "ready" },
+    { number: 43, id: "krestovsky-prospect", title: "Купеческая улица — Крестовский проспект", chapter: "old-town", status: "ready" },
+    { number: 44, id: "kem-fortress", title: "Малый Лепостров и место Кемского острога", chapter: "old-town", status: "ready" },
+    { number: 45, id: "mill-street", title: "Мельничная улица и мельницы Кеми", chapter: "river", status: "ready" },
+    { number: 46, id: "malyshev-street", title: "Улица Малышева и память о событиях 1918 года", chapter: "old-town", status: "ready" }
   ],
   points: [
     {

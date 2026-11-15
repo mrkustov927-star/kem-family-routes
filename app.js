@@ -147,6 +147,7 @@
     planFilters: document.querySelector("#planFilters"),
     planGrid: document.querySelector("#planGrid"),
     routePlanTitle: document.querySelector("#routePlanTitle"),
+    routePlanRouteName: document.querySelector("#routePlanRouteName"),
     readyCount: document.querySelector("#readyCount"),
     readyLabel: document.querySelector("#readyLabel"),
     readinessBar: document.querySelector("#readinessBar"),
@@ -251,9 +252,9 @@
 
   function selectedRoutePoints() {
     const definition = selectedRoute();
-    if (!Array.isArray(definition.pointIds)) return [...guidedPoints];
     const byId = new Map(guidedPoints.map(point => [point.id, point]));
-    return definition.pointIds.map(id => byId.get(id)).filter(Boolean);
+    const ids = Array.isArray(definition.pointIds) ? definition.pointIds : guidedPoints.map(point => point.id);
+    return [...new Set(ids)].map(id => byId.get(id)).filter(Boolean);
   }
 
   function pointIsOnSelectedRoute(pointId) {
@@ -305,7 +306,7 @@
       els.routeOverviewContent.innerHTML = "";
       return;
     }
-    const stops = (overview.stops || []).map(stop => `<li><button class="route-overview__point" type="button" data-point-id="${escapeHtml(stop.id)}">${escapeHtml(stop.title)}</button><p>${escapeHtml(stop.text)}</p></li>`).join("");
+    const stops = (overview.stops || []).map(stop => `<li><button class="route-overview__point" type="button" data-point-id="${escapeHtml(stop.id)}">${escapeHtml(stop.title)}</button><p>${escapeHtml(stop.text)}</p>${routeStopSections(stop)}${stop.check ? `<details class="route-stop-check"><summary>Что ещё уточнить</summary><p>${escapeHtml(stop.check)}</p></details>` : ""}</li>`).join("");
     const additions = (overview.additions || []).map(item => {
       const url = safeExternalUrl(item.url);
       const title = item.pointId
@@ -326,6 +327,20 @@
       <ul class="route-overview__sources">${sources}</ul>`;
   }
 
+
+  function routeStopSections(stop) {
+    return (stop.sections || []).map(section => {
+      const sources = (section.sources || []).filter(source => safeExternalUrl(source.url)).map(source => `<li><a href="${escapeHtml(safeExternalUrl(source.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title)}</a></li>`).join("");
+      return `<section class="route-stop-topic"><h4>${escapeHtml(section.title)}</h4>${(section.paragraphs || []).map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}${sources ? `<ul class="source-list">${sources}</ul>` : ""}</section>`;
+    }).join("");
+  }
+
+  function routeStopSupplement(pointId) {
+    const stop = selectedRoute().overview?.stops?.find(item => item.id === pointId);
+    if (!stop?.sections?.length) return "";
+    return `<section class="route-stop-supplement" aria-label="Материалы выбранного маршрута"><h3>Темы этого маршрута</h3>${routeStopSections(stop)}</section>`;
+  }
+
   function selectRoute(routeId) {
     if (state.routeSaving || state.routeEditMode) {
       els.routeSelect.value = state.activeRouteId;
@@ -336,6 +351,7 @@
     state.activeRouteId = routeId;
     state.currentPointIndex = 0;
     state.filter = "all";
+    state.planFilter = "all";
     state.completed = new Set(readStorage(progressStorageKey(routeId), []));
     state.routeCoordinates = selectedRouteGeometry();
     try { localStorage.setItem("kem-selected-route-v1", routeId); } catch (_) {}
@@ -411,12 +427,19 @@
   }
 
   function pointDisplayNumber(point) {
-    if (state.activeRouteId !== "main") {
-      const index = selectedRoutePoints().findIndex(item => item.id === point.id);
-      if (index >= 0) return index + 1;
-    }
-    const shared = state.sharedPointRecords.find(record => record.id === point.id);
-    return shared?.route_order ?? point.number ?? "+";
+    const index = selectedRoutePoints().findIndex(item => item.id === point.id);
+    return index >= 0 ? index + 1 : "—";
+  }
+
+  function pointEditorChoices() {
+    const selected = selectedRoutePoints();
+    const ids = new Set(selected.map(point => point.id));
+    return [...selected, ...route.plannedPoints.filter(point => !ids.has(point.id))];
+  }
+
+  function pointChoiceLabel(point) {
+    const number = pointDisplayNumber(point);
+    return number === "—" ? `${point.title} — вне выбранного маршрута` : `${number}. ${point.title}`;
   }
 
   function namedPointMarkerHtml(title, order = "+", variant = "shared") {
@@ -424,7 +447,7 @@
   }
 
   function sharedPointMarkerHtml(record) {
-    return namedPointMarkerHtml(record.short_title || record.title, record.route_order, "shared");
+    return namedPointMarkerHtml(record.short_title || record.title, pointDisplayNumber(record), "shared");
   }
 
   function guidedPointMarkerHtml(point, needsCheck = false) {
@@ -441,7 +464,7 @@
     if (shared) return {
       id: shared.id,
       title: shared.title,
-      number: shared.route_order || "+",
+      number: pointDisplayNumber(shared),
       coordinates: Number.isFinite(shared.latitude) && Number.isFinite(shared.longitude) ? [shared.latitude, shared.longitude] : null
     };
     if (planned) return { id: planned.id, title: planned.title, number: planned.number, coordinates: null };
@@ -637,7 +660,7 @@
       else route.plannedPoints.push(plannedData);
       const guided = guidedPoints.find(point => point.id === record.id);
       if (guided) Object.assign(guided, display);
-      else if (display.coordinates) guidedPoints.push(display);
+      else guidedPoints.push(display);
     });
     route.plannedPoints.sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
     guidedPoints.sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
@@ -937,7 +960,7 @@
       const marker = L.marker(point.coordinates, {
         icon: L.divIcon({
           className: "",
-          html: `<div class="photo-map-marker${photo.isDraft ? " photo-map-marker--draft" : ""}" style="background-image:url('${photo.src}')"><span>${escapeHtml(photo.pointNumber)}</span></div>`,
+          html: `<div class="photo-map-marker${photo.isDraft ? " photo-map-marker--draft" : ""}" style="background-image:url('${photo.src}')"><span>${escapeHtml(photoPointDetails(photo.pointId)?.number ?? "—")}</span></div>`,
           iconSize: [54, 54],
           iconAnchor: [27, 27],
           popupAnchor: [0, -29]
@@ -1029,7 +1052,7 @@
         if (!point?.coordinates || !pointIsOnSelectedRoute(photo.pointId)) return;
         addYandexMarker(
           point.coordinates,
-          `<div class="photo-map-marker${photo.isDraft ? " photo-map-marker--draft" : ""}" style="background-image:url('${photo.src}')"><span>${escapeHtml(photo.pointNumber)}</span></div>`,
+          `<div class="photo-map-marker${photo.isDraft ? " photo-map-marker--draft" : ""}" style="background-image:url('${photo.src}')"><span>${escapeHtml(photoPointDetails(photo.pointId)?.number ?? "—")}</span></div>`,
           `Фотография: ${photo.title}`,
           () => openPhoto(photo.id),
           true
@@ -1156,7 +1179,9 @@
   }
 
   function renderPlanFilters() {
-    const items = [{ id: "all", title: "Все главы" }, ...route.chapters];
+    const chapters = new Set(selectedRoutePoints().map(point => point.chapter));
+    if (state.planFilter !== "all" && !chapters.has(state.planFilter)) state.planFilter = "all";
+    const items = [{ id: "all", title: "Все главы" }, ...route.chapters.filter(chapter => chapters.has(chapter.id))];
     els.planFilters.innerHTML = items.map(item => `<button class="filter-chip ${item.id === state.planFilter ? "is-active" : ""}" type="button" data-plan-filter="${item.id}">${item.title}</button>`).join("");
   }
 
@@ -1170,31 +1195,33 @@
   }
 
   function renderPlan() {
-    const total = route.plannedPoints.length;
-    const ready = route.plannedPoints.filter(point => researchById.has(point.id) || point.status === "ready").length;
-    els.routePlanTitle.textContent = `${total} ${russianPlural(total, "тема", "темы", "тем")} большого маршрута`;
+    const points = selectedRoutePoints();
+    const total = points.length;
+    const isReady = point => researchById.has(point.id) || point.sharedStatus === "published";
+    const ready = points.filter(isReady).length;
+    els.routePlanTitle.textContent = `${total} ${russianPlural(total, "точка", "точки", "точек")} маршрута`;
+    els.routePlanRouteName.textContent = selectedRoute().title;
     els.readyCount.textContent = ready;
     els.readyLabel.textContent = ready === 1 ? "карточка готова" : `${russianPlural(ready, "карточка", "карточки", "карточек")} готовы`;
     els.readinessBar.style.width = `${total ? (ready / total) * 100 : 0}%`;
-    const visible = state.planFilter === "all" ? route.plannedPoints : route.plannedPoints.filter(point => point.chapter === state.planFilter);
-    els.planGrid.innerHTML = visible.map(point => {
+    const visible = state.planFilter === "all" ? points : points.filter(point => point.chapter === state.planFilter);
+    els.planGrid.innerHTML = visible.length ? visible.map(point => {
       const curated = researchById.get(point.id);
-      const guided = guidedPoints.find(item => item.id === point.id);
-      const isReady = Boolean(curated) || point.status === "ready";
-      const canOpen = Boolean(guided || state.sharedPointRecords.some(record => record.id === point.id));
-      const summary = curated?.intro || point.summary || guided?.intro || "";
+      const ready = isReady(point);
+      const summary = point.intro || "";
       const photo = allPhotos().find(item => item.pointId === point.id);
-      const action = canOpen ? `<button class="plan-action" type="button" data-open-plan="${point.id}">Открыть карточку →</button>` : "";
-      const editAction = `<button class="plan-action" type="button" data-edit-point="${point.id}">${userIsAuthenticated() ? "✎ Редактировать" : "Добавить материал →"}</button>`;
-      const photoAction = photo ? `<button class="plan-action" type="button" data-photo-id="${photo.id}">▣ Есть фото</button>` : "";
-      const addPhotoAction = `<button class="plan-action" type="button" data-add-photo-point="${point.id}">＋ Фото</button>`;
-      const statusText = curated ? "✓ исторический материал подготовлен" : isReady ? "✓ карточка готова" : "○ исследуем";
-      return `<li class="plan-item ${isReady ? "plan-item--ready" : ""}"><span class="plan-item__number">${point.number}</span><div><h3>${escapeHtml(point.title)}</h3>${summary ? `<p class="plan-item__summary">${escapeHtml(summary)}</p>` : ""}<div class="plan-item__meta"><span class="plan-status">${statusText}</span>${photoAction}${addPhotoAction}${action}${editAction}</div></div></li>`;
-    }).join("");
+      const action = `<button class="plan-action" type="button" data-open-plan="${escapeHtml(point.id)}">Открыть карточку →</button>`;
+      const editAction = `<button class="plan-action" type="button" data-edit-point="${escapeHtml(point.id)}">${userIsAuthenticated() ? "✎ Редактировать" : "Добавить материал →"}</button>`;
+      const photoAction = photo ? `<button class="plan-action" type="button" data-photo-id="${escapeHtml(photo.id)}">▣ Есть фото</button>` : "";
+      const addPhotoAction = `<button class="plan-action" type="button" data-add-photo-point="${escapeHtml(point.id)}">＋ Фото</button>`;
+      const statusText = curated ? "✓ исторический материал подготовлен" : ready ? "✓ карточка готова" : "○ исследуем";
+      const coordinateNote = Array.isArray(point.coordinates) ? "" : '<span class="plan-coordinate-note">Ещё не отмечена на карте</span>';
+      return `<li class="plan-item ${ready ? "plan-item--ready" : ""}" data-route-point-id="${escapeHtml(point.id)}"><span class="plan-item__number">${escapeHtml(pointDisplayNumber(point))}</span><div><h3>${escapeHtml(point.shortTitle || point.title)}</h3>${summary ? `<p class="plan-item__summary">${escapeHtml(summary)}</p>` : ""}<div class="plan-item__meta"><span class="plan-status">${statusText}</span>${coordinateNote}${photoAction}${addPhotoAction}${action}${editAction}</div></div></li>`;
+    }).join("") : '<li class="plan-empty">В этом маршруте пока нет точек для выбранного раздела.</li>';
   }
 
   function renderPhotos() {
-    els.photoStrip.innerHTML = allPhotos().map(photo => `<button class="photo-card${photo.isDraft ? " photo-card--draft" : ""}" type="button" data-photo-id="${photo.id}"><img src="${photo.src}" alt="" loading="lazy"><span class="photo-card__copy"><span>${photo.isDraft ? "Черновик" : `Точка ${escapeHtml(photo.pointNumber)}`}</span><strong>${escapeHtml(photo.title)}</strong><small>${escapeHtml(photo.date || "Дата уточняется")}</small></span></button>`).join("");
+    els.photoStrip.innerHTML = allPhotos().filter(photo => pointIsOnSelectedRoute(photo.pointId)).map(photo => `<button class="photo-card${photo.isDraft ? " photo-card--draft" : ""}" type="button" data-photo-id="${photo.id}"><img src="${photo.src}" alt="" loading="lazy"><span class="photo-card__copy"><span>${photo.isDraft ? "Черновик" : `Точка ${escapeHtml(photoPointDetails(photo.pointId)?.number ?? "—")}`}</span><strong>${escapeHtml(photo.title)}</strong><small>${escapeHtml(photo.date || "Дата уточняется")}</small></span></button>`).join("");
   }
 
   function openPhoto(photoId) {
@@ -1208,12 +1235,12 @@
       : photo.isDraft
         ? `<p><button class="text-button text-button--danger" type="button" data-delete-photo-draft="${photo.id}">Удалить этот черновик</button></p>`
         : `<p><button class="text-button" type="button" data-edit-point="${photo.pointId}">Уточнить подпись или автора →</button></p>`;
-    els.photoDialogContent.innerHTML = `<img class="photo-viewer__image" src="${photo.src}" alt="${escapeHtml(photo.alt || photo.title)}"><div class="photo-viewer__copy"><p class="eyebrow">${photo.isDraft ? "Черновик участника" : `Фото · точка ${escapeHtml(photo.pointNumber)}`}</p><h2>${escapeHtml(photo.title)}</h2><p>${escapeHtml(photo.caption)}</p><div class="photo-meta"><div><strong>Дата</strong><span>${escapeHtml(photo.date || "Не указана")}</span></div><div><strong>Автор</strong><span>${escapeHtml(photo.author)}</span></div><div><strong>Источник</strong><span>${escapeHtml(photo.source || "Личный материал")}</span></div><div><strong>Статус прав</strong><span>${escapeHtml(photo.rightsStatus)}</span></div></div>${draftAction}</div>`;
+    els.photoDialogContent.innerHTML = `<img class="photo-viewer__image" src="${photo.src}" alt="${escapeHtml(photo.alt || photo.title)}"><div class="photo-viewer__copy"><p class="eyebrow">${photo.isDraft ? "Черновик участника" : `Фото · точка ${escapeHtml(photoPointDetails(photo.pointId)?.number ?? "—")}`}</p><h2>${escapeHtml(photo.title)}</h2><p>${escapeHtml(photo.caption)}</p><div class="photo-meta"><div><strong>Дата</strong><span>${escapeHtml(photo.date || "Не указана")}</span></div><div><strong>Автор</strong><span>${escapeHtml(photo.author)}</span></div><div><strong>Источник</strong><span>${escapeHtml(photo.source || "Личный материал")}</span></div><div><strong>Статус прав</strong><span>${escapeHtml(photo.rightsStatus)}</span></div></div>${draftAction}</div>`;
     els.photoDialog.showModal();
   }
 
   function photoPointOptions(selectedPointId = "") {
-    const plannedOptions = route.plannedPoints.map(point => ({ id: point.id, title: `${point.number}. ${point.title}` }));
+    const plannedOptions = pointEditorChoices().map(point => ({ id: point.id, title: pointChoiceLabel(point) }));
     const draftOptions = state.edits
       .filter(edit => edit.field === "new-point")
       .map(edit => ({ id: edit.pointId, title: `＋ ${edit.pointName} — новая точка` }));
@@ -1223,7 +1250,7 @@
   function renderCoordinatePointOptions(selectedPointId = "") {
     const select = document.querySelector("#coordinatePoint");
     const previous = selectedPointId || select.value;
-    select.innerHTML = `<option value="">Выберите точку</option><option value="__new__">＋ Добавить новую точку</option>${route.plannedPoints.map(point => `<option value="${escapeHtml(point.id)}">${escapeHtml(point.number)}. ${escapeHtml(point.title)}${point.status === "ready" ? " — есть материал" : ""}</option>`).join("")}`;
+    select.innerHTML = `<option value="">Выберите точку</option><option value="__new__">＋ Добавить новую точку</option>${pointEditorChoices().map(point => `<option value="${escapeHtml(point.id)}">${escapeHtml(pointChoiceLabel(point))}</option>`).join("")}`;
     if ([...select.options].some(option => option.value === previous)) select.value = previous;
   }
 
@@ -1711,7 +1738,7 @@
     els.pointsList.innerHTML = visible.map(point => {
       const chapter = route.chapters.find(item => item.id === point.chapter);
       const done = state.completed.has(point.id) ? " · пройдено" : "";
-      return `<li><button class="point-card" type="button" data-point-id="${escapeHtml(point.id)}" data-status="${escapeHtml(point.coordinateStatus)}"><span class="point-card__number">${escapeHtml(pointDisplayNumber(point))}</span><strong>${escapeHtml(point.shortTitle)}</strong><small>${escapeHtml(chapter?.title || "Маршрут")} · ${escapeHtml(point.duration)}${done}</small></button></li>`;
+      return `<li><button class="point-card" type="button" data-point-id="${escapeHtml(point.id)}" data-status="${escapeHtml(point.coordinateStatus)}"><span class="point-card__number">${escapeHtml(pointDisplayNumber(point))}</span><strong>${escapeHtml(point.shortTitle)}</strong><small>${escapeHtml(chapter?.title || "Маршрут")} · ${escapeHtml(point.duration)}${Array.isArray(point.coordinates) ? "" : " · ещё не отмечена на карте"}${done}</small></button></li>`;
     }).join("");
   }
 
@@ -1970,6 +1997,7 @@
       : "";
     els.pointDialogContent.innerHTML = `
       ${statusBadge(point)}
+      ${selectedIndex >= 0 ? `<p class="eyebrow">Точка ${escapeHtml(pointDisplayNumber(point))} · ${escapeHtml(selectedRoute().title)}</p>` : ""}
       <h2>${escapeHtml(point.title)}</h2>
       ${researchMeta}
       <p class="lead">${escapeHtml(point.intro)}</p>
@@ -1977,6 +2005,7 @@
       <h3>Текст экскурсии</h3><p class="guide-script">${escapeHtml(point.guideText)}</p>
       <h3>Факты и даты</h3>
       <ul class="fact-list">${point.facts.map(fact => `<li>${escapeHtml(fact)}</li>`).join("")}</ul>
+      ${routeStopSupplement(point.id)}
       ${visualEvidence(point.id)}
       <h3>Источники</h3><ul class="source-list">${sourceList(point)}</ul>
       <h3>Что показать</h3><p>${escapeHtml(point.show)}</p>
@@ -2218,6 +2247,7 @@
           <section class="guide-block"><h3>Спросить семью</h3><p>${escapeHtml(point.familyQuestion)}</p></section>
           <section class="guide-block"><h3>Безопасность</h3><p>${escapeHtml(point.safety)}</p></section>
         </div>
+        ${routeStopSupplement(point.id)}
         ${visualEvidence(point.id)}
         <section class="guide-reference"><h3>Источники</h3><ul class="source-list">${sourceList(point)}</ul></section>
         ${point.localCheck ? `<details class="guide-reference"><summary>Редакционные заметки</summary><p class="research-note"><strong>Что ещё проверить:</strong> ${escapeHtml(point.localCheck)}</p></details>` : ""}
@@ -2940,7 +2970,7 @@
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("./sw.js?v=20261115-routes-2", { updateViaCache: "none" })
+        .register("./sw.js?v=20261115-routes-4", { updateViaCache: "none" })
         .then(registration => registration.update())
         .catch(() => {});
     });
