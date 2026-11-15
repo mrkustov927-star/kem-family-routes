@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://tile.openstreetmap.org">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <link rel="stylesheet" href="./styles.css?v=20261115-routes-1">
+  <link rel="stylesheet" href="./styles.css?v=20261115-routes-2">
   <style>body.access-locked > :not(#authDialog):not(#toast):not(script){visibility:hidden;pointer-events:none} body.access-locked #authDialog .dialog-close{display:none}</style>
 </head>
 <body class="access-locked">
@@ -56,6 +56,7 @@
           <select id="routeSelect" aria-describedby="routeDescription routeLineNote">
             <option value="main">Большой маршрут по Кеми</option>
             <option value="ckis-assumption">ЦКиС — Успенский собор</option>
+            <option value="annunciation-assumption">Благовещенский собор — Успенский собор</option>
           </select>
         </label>
         <div class="route-picker__details" aria-live="polite">
@@ -64,6 +65,10 @@
           <p class="route-picker__note" id="routeLineNote">Основной маршрут использует общую сохранённую линию.</p>
         </div>
       </div>
+      <details class="route-overview" id="routeOverview" hidden>
+        <summary>О маршруте: остановки, дополнения и источники</summary>
+        <div class="route-overview__content" id="routeOverviewContent"></div>
+      </details>
       <div class="workspace__toolbar">
         <div class="segmented" role="group" aria-label="Режим просмотра">
           <button class="segmented__button is-active" data-view="map" type="button">Карта</button>
@@ -418,10 +423,10 @@
   <script src="./visual-evidence.js?v=20261115-cathedral-1"></script>
   <script src="./photos.js"></script>
   <script src="./route-geometry.js"></script>
-  <script src="./routes.js?v=20261115-routes-1"></script>
+  <script src="./routes.js?v=20261115-routes-2"></script>
   <script src="./supabase-config.js?v=20260718-2"></script>
   <script src="./community.js?v=20261115-routes-1"></script>
-  <script src="./app.js?v=20261115-routes-1"></script>
+  <script src="./app.js?v=20261115-routes-2"></script>
 </body>
 </html>
 

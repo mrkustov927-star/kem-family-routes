@@ -127,6 +127,8 @@
     routeDescription: document.querySelector("#routeDescription"),
     routePointCount: document.querySelector("#routePointCount"),
     routeLineNote: document.querySelector("#routeLineNote"),
+    routeOverview: document.querySelector("#routeOverview"),
+    routeOverviewContent: document.querySelector("#routeOverviewContent"),
     map: document.querySelector("#map"),
     yandexMap: document.querySelector("#yandexMap"),
     mapPanel: document.querySelector(".map-panel"),
@@ -281,6 +283,7 @@
     els.routeSelect.value = state.activeRouteId;
     els.routeSelect.disabled = state.routeSaving;
     els.routeDescription.textContent = current.description;
+    renderRouteOverview(current);
     const points = selectedRoutePoints();
     const unmapped = points.filter(point => !Array.isArray(point.coordinates)).length;
     els.routePointCount.textContent = `${points.length} ${russianPlural(points.length, "точка", "точки", "точек")}${unmapped ? ` · без координат: ${unmapped}` : ""}`;
@@ -291,6 +294,36 @@
     document.querySelector("#routeEditorTitle").textContent = current.title;
     document.querySelector("#routeSaveButton").textContent = state.routeSaving ? "Сохраняем…" : isMain ? "Сохранить для всех" : "Сохранить на устройстве";
     document.querySelector("#startTourButton").disabled = points.length === 0;
+  }
+
+
+  function renderRouteOverview(current) {
+    const overview = current.overview;
+    els.routeOverview.hidden = !overview;
+    if (!overview) {
+      els.routeOverview.open = false;
+      els.routeOverviewContent.innerHTML = "";
+      return;
+    }
+    const stops = (overview.stops || []).map(stop => `<li><button class="route-overview__point" type="button" data-point-id="${escapeHtml(stop.id)}">${escapeHtml(stop.title)}</button><p>${escapeHtml(stop.text)}</p></li>`).join("");
+    const additions = (overview.additions || []).map(item => {
+      const url = safeExternalUrl(item.url);
+      const title = item.pointId
+        ? `<button class="route-overview__point" type="button" data-point-id="${escapeHtml(item.pointId)}">${escapeHtml(item.title)}</button>`
+        : url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>` : `<strong>${escapeHtml(item.title)}</strong>`;
+      return `<li>${title}<p>${escapeHtml(item.text)}</p></li>`;
+    }).join("");
+    const sources = (overview.sources || []).filter(item => safeExternalUrl(item.url)).map(item => `<li><a href="${escapeHtml(safeExternalUrl(item.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a></li>`).join("");
+    els.routeOverviewContent.innerHTML = `
+      <h3>${escapeHtml(overview.theme)}</h3>
+      <p>${escapeHtml(overview.introduction)}</p>
+      <h4>Остановки и темы рассказа</h4>
+      <ol class="route-overview__stops">${stops}</ol>
+      <h4>Что ещё можно включить</h4>
+      <ul class="route-overview__additions">${additions}</ul>
+      <p class="route-overview__field-note">${escapeHtml(overview.fieldNote)}</p>
+      <h4>Источники</h4>
+      <ul class="route-overview__sources">${sources}</ul>`;
   }
 
   function selectRoute(routeId) {
@@ -2907,7 +2940,7 @@
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("./sw.js?v=20261115-routes-1", { updateViaCache: "none" })
+        .register("./sw.js?v=20261115-routes-2", { updateViaCache: "none" })
         .then(registration => registration.update())
         .catch(() => {});
     });

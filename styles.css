@@ -418,3 +418,22 @@ footer p { margin: 7px 0 0; color: #9eb3c0; }
 @media (max-width: 700px) {
   .route-picker { grid-template-columns: 1fr; gap: 15px; padding: 18px; }
 }
+
+.route-overview { margin: 0 0 20px; border: 1px solid var(--line); border-radius: 16px; background: #fff; color: #344c5e; }
+.route-overview > summary { padding: 17px 22px; color: var(--navy); font-weight: 800; cursor: pointer; }
+.route-overview > summary:focus-visible, .route-overview__point:focus-visible { outline: 3px solid #94c5df; outline-offset: 3px; }
+.route-overview__content { max-width: 1000px; padding: 0 24px 24px; line-height: 1.65; overflow-wrap: anywhere; }
+.route-overview__content h3 { margin: 5px 0 12px; color: var(--navy); font-size: 22px; }
+.route-overview__content h4 { margin: 24px 0 12px; color: var(--navy); font-size: 17px; }
+.route-overview__stops, .route-overview__additions, .route-overview__sources { padding-left: 24px; }
+.route-overview__stops li, .route-overview__additions li { padding-left: 4px; margin: 15px 0; }
+.route-overview__content li p { margin: 4px 0; }
+.route-overview__content a, .route-overview__point { color: #175a7b; text-decoration: underline; text-underline-offset: 3px; }
+.route-overview__point { display: inline; padding: 2px 0; border: 0; background: transparent; text-align: left; font: inherit; font-weight: 800; cursor: pointer; }
+.route-overview__field-note { padding: 14px 16px; border-left: 3px solid #bc8d43; background: #faf6ee; border-radius: 6px; }
+.route-overview__sources { font-size: 14px; }
+.route-overview__sources li { margin: 8px 0; }
+@media (max-width: 700px) {
+  .route-overview > summary { padding: 16px 18px; }
+  .route-overview__content { padding: 0 18px 20px; font-size: 15px; }
+}

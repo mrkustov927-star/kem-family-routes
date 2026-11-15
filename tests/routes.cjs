@@ -35,6 +35,30 @@ api.state.routeCoordinates = api.selectedRouteGeometry();
 assert.equal(api.selectedRoutePoints().length,42);
 api.updateProgress();
 assert.equal(api.els.progressText.textContent,'1 из 42 точек');
+
+assert.equal(context.window.KEM_ROUTES.length,3);
+assert.equal(api.selectRoute('annunciation-assumption'),true);
+assert.deepEqual(Array.from(api.selectedRoutePoints(),p=>p.id),[
+  'annunciation','slon-office','revolution-square','pomor-house',
+  'kem-river-bridge','vitsupa-ostrog','pomorye-museum','assumption-cathedral'
+]);
+assert.equal(new Set(api.selectedRoutePoints().map(p=>p.id)).size,8);
+assert.equal(api.activeRouteLine().length,0,'The third route does not borrow main geometry');
+assert.equal(api.els.routeOverview.hidden,false);
+assert(api.els.routeOverviewContent.innerHTML.includes('Троицкая часовня'));
+assert(api.els.routeOverviewContent.innerHTML.includes('Порядок остановок предварительный'));
+assert.equal((api.els.routeOverviewContent.innerHTML.match(/data-point-id=/g)||[]).length,9);
+api.state.completed.add('annunciation');api.saveProgress();
+assert.equal(api.els.progressText.textContent,'1 из 8 точек');
+api.renderGuide();assert(api.els.guideStep.textContent.includes('из 8'));
+api.selectRoute('main');
+assert.equal(api.els.routeOverview.hidden,true);
+assert.equal(api.els.routeOverviewContent.innerHTML,'');
+assert(!api.state.completed.has('annunciation'));
+api.selectRoute('annunciation-assumption');
+assert(api.state.completed.has('annunciation'));
+api.selectRoute('main');
+
 assert.equal(api.selectRoute('ckis-assumption'),true);
 assert.equal(api.selectedRoutePoints().length,9);
 assert.equal(api.selectedRoutePoints()[0].id,'ckis-square');
@@ -87,10 +111,10 @@ api.state.routeDraft = [[64.945,34.61],[64.946,34.62]];
   assert.equal(api.activeRouteLine()[0][0],64.949);
   const html=read('index.html'); const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
   assert.equal(ids.length,new Set(ids).size);
-  for(const id of ['routeSelect','routeDescription','routeLineNote','routePointCount','routeEditorTitle'])assert(ids.includes(id));
+  for(const id of ['routeSelect','routeDescription','routeLineNote','routePointCount','routeEditorTitle','routeOverview','routeOverviewContent'])assert(ids.includes(id));
   for(const name of ['app.js','community.js','routes.js','sw.js'])new vm.Script(read(name),{filename:name});
   const css=read('styles.css'); assert.equal([...css.matchAll(/\{/g)].length,[...css.matchAll(/\}/g)].length);
   assert(read('sw.js').includes('"./routes.js"'));
-  console.log(JSON.stringify({syntax:'passed',builtInRoutes:2,mainPoints:42,shortRoutePoints:9,progressIsolation:'passed',lineIsolation:'passed',draftAndSaveGuards:'passed',emptyRoute:'passed',outOfRouteCards:'passed',quotaFailure:'passed'}));
+  console.log(JSON.stringify({syntax:'passed',builtInRoutes:3,mainPoints:42,shortRoutePoints:9,cathedralRoutePoints:8,routeOverview:'passed',progressIsolation:'passed',lineIsolation:'passed',draftAndSaveGuards:'passed',emptyRoute:'passed',outOfRouteCards:'passed',quotaFailure:'passed'}));
 })().catch(error=>{console.error(error);process.exitCode=1;});
 
