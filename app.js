@@ -20,6 +20,11 @@
     return {
       ...point,
       title: curated.title || point.title,
+      shortTitle: curated.shortTitle || point.shortTitle,
+      image: curated.image || point.image,
+      imageAlt: curated.imageAlt || point.imageAlt,
+      duration: curated.duration || point.duration,
+      coordinateNote: curated.coordinateNote || point.coordinateNote,
       intro: curated.intro,
       facts: curated.facts,
       show: curated.show,
@@ -500,7 +505,8 @@
       guideText: curated.guideText,
       familyQuestion: curated.familyQuestion,
       safety: curated.safety,
-      sources: curated.sources
+      sources: curated.sources,
+      ...(curated.visualEvidence ? { visualEvidence: curated.visualEvidence } : {})
     };
   }
 
@@ -1212,7 +1218,8 @@
       const photo = allPhotos().find(item => item.pointId === point.id);
       const action = `<button class="plan-action" type="button" data-open-plan="${escapeHtml(point.id)}">Открыть карточку →</button>`;
       const editAction = `<button class="plan-action" type="button" data-edit-point="${escapeHtml(point.id)}">${userIsAuthenticated() ? "✎ Редактировать" : "Добавить материал →"}</button>`;
-      const photoAction = photo ? `<button class="plan-action" type="button" data-photo-id="${escapeHtml(photo.id)}">▣ Есть фото</button>` : "";
+      const hasEvidenceImages = (pointVisualEvidence(point.id).images || []).length > 0;
+      const photoAction = photo ? `<button class="plan-action" type="button" data-photo-id="${escapeHtml(photo.id)}">▣ Есть фото</button>` : hasEvidenceImages ? `<button class="plan-action" type="button" data-open-plan="${escapeHtml(point.id)}">▣ Фото и документы</button>` : "";
       const addPhotoAction = `<button class="plan-action" type="button" data-add-photo-point="${escapeHtml(point.id)}">＋ Фото</button>`;
       const statusText = curated ? "✓ исторический материал подготовлен" : ready ? "✓ карточка готова" : "○ исследуем";
       const coordinateNote = Array.isArray(point.coordinates) ? "" : '<span class="plan-coordinate-note">Ещё не отмечена на карте</span>';
@@ -2137,6 +2144,7 @@
       coordinate_status: guided?.coordinateStatus || "needs-check",
       status: guided ? "published" : "research",
       content: guided ? {
+        ...curatedContentPayload(researchById.get(pointId)),
         duration: guided.duration,
         coordinateNote: guided.coordinateNote,
         image: guided.image,

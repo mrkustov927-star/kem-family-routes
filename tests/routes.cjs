@@ -26,25 +26,29 @@ const context = {
   document: { querySelector: node, querySelectorAll: () => [], createElement: () => node('generated:'+generatedNodeId++) }, URL, console, Map, Set,
 };
 vm.createContext(context);
-for (const name of ['points.js','research-cards.js','visual-evidence.js','route-geometry.js','routes.js','photos.js']) vm.runInContext(read(name), context);
+for (const name of ['points.js','research-cards.js','visual-evidence.js','route-geometry.js','routes.js','photos.js','intervention-cards.js']) vm.runInContext(read(name), context);
+// Re-loading the optional catalogue must retain sources and avoid duplicate cards.
+vm.runInContext(read('intervention-cards.js'), context);
 const boundary = source.indexOf('  window.openKemPoint = openPoint;');
 assert(boundary > 0);
-vm.runInContext(source.slice(0,boundary) + '\nwindow.testRoutes={state,els,selectRoute,selectedRoutePoints,selectedRouteGeometry,activeRouteLine,applySharedWorkspace,updateProgress,saveProgress,renderGuide,openPoint,saveSharedRoute,selectedRouteIssues,pointDisplayNumber,renderPlan,renderPlanFilters,renderPoints,renderYandexObjects,redrawLeafletRoute,renderPhotos,photoPointDetails};\n})();', context);
+vm.runInContext(source.slice(0,boundary) + '\nwindow.testRoutes={state,els,selectRoute,selectedRoutePoints,selectedRouteGeometry,activeRouteLine,applySharedWorkspace,updateProgress,saveProgress,renderGuide,openPoint,saveSharedRoute,selectedRouteIssues,pointDisplayNumber,renderPlan,renderPlanFilters,renderPoints,renderYandexObjects,redrawLeafletRoute,renderPhotos,photoPointDetails,pointSeedRecords,pointRecordForEditor};\n})();', context);
 const api = context.window.testRoutes;
 api.state.community.authenticated = true;
 api.state.routeCoordinates = api.selectedRouteGeometry();
-assert.equal(api.selectedRoutePoints().length,46);
+assert.equal(api.selectedRoutePoints().length,54);
 api.updateProgress();
-assert.equal(api.els.progressText.textContent,'1 из 46 точек');
+assert.equal(api.els.progressText.textContent,'1 из 54 точек');
 
 assert.equal(context.window.KEM_ROUTES.length,3);
 assert.equal(api.selectRoute('annunciation-assumption'),true);
 assert.deepEqual(Array.from(api.selectedRoutePoints(),p=>p.id),[
-  'annunciation','krestovsky-prospect','slon-office','pomor-house','revolution-square',
-  'humpback-bridge','kem-fortress','mill-street','malyshev-street',
+  'annunciation','intervention-garrison','intervention-july-1918','krestovsky-prospect',
+  'intervention-woods-regiment','intervention-kem-winter','intervention-karelian-assembly',
+  'intervention-post-telegraph','intervention-railway-network','slon-office','pomor-house','revolution-square',
+  'humpback-bridge','intervention-port-evacuation','kem-fortress','mill-street','malyshev-street',
   'sea-rapid-memorial','vitsupa-ostrog','pomorye-museum','assumption-cathedral'
 ]);
-assert.equal(new Set(api.selectedRoutePoints().map(p=>p.id)).size,13);
+assert.equal(new Set(api.selectedRoutePoints().map(p=>p.id)).size,21);
 assert.equal(api.activeRouteLine().length,0,'The third route does not borrow main geometry');
 assert.equal(api.els.routeOverview.hidden,false);
 assert(api.els.routeOverviewContent.innerHTML.includes('Троицкая часовня'));
@@ -54,26 +58,47 @@ for (const topic of ['Лихачёв','Пономарёв','Зосимо-Сав�
 }
 const cathedralRoute=context.window.KEM_ROUTES.find(route=>route.id==='annunciation-assumption');
 const interventionSections=cathedralRoute.overview.stops.flatMap(stop=>stop.sections||[]).filter(section=>section.id?.startsWith('intervention-'));
-assert.equal(interventionSections.length,12);
-assert.equal(new Set(interventionSections.map(section=>section.id)).size,12);
-assert(interventionSections.every(section=>section.paragraphs.length && section.sources.length && section.sources.every(source=>new URL(source.url).protocol==='https:')));
-for(const phrase of ['Вудс','24 июля 1918','18 февраля 1919','Филиппа Вудса','Каменев','Royal Museums Greenwich','1938–1939','22 сентября — 12 октября'])assert(api.els.routeOverviewContent.innerHTML.includes(phrase),'Missing intervention material: '+phrase);
+assert.equal(interventionSections.length,0,'Full cards replace duplicated topic blocks');
+const interventionCards=context.window.KEM_INTERVENTION_CARDS;
+assert.equal(interventionCards.length,8);
+assert.equal(new Set(interventionCards.map(card=>card.id)).size,8);
+const seeds=api.pointSeedRecords();
+for(const card of interventionCards){
+  const point=api.selectedRoutePoints().find(point=>point.id===card.id);
+  assert(point && point.coordinates===null,'Leave placement to the route author: '+card.id);
+  assert(card.guideText.split(/\s+/).length>=190 && card.facts.length>=3 && card.familyQuestion);
+  assert(card.sources.length && card.sources.every(source=>new URL(source.url).protocol==='https:'));
+  assert(card.visualEvidence.images.length && card.visualEvidence.images.every(image=>image.caption && image.credit));
+  assert(fs.existsSync(path.join(root,card.image)),'Missing card photograph: '+card.id);
+  api.openPoint(card.id);
+  assert(api.els.pointDialogContent.innerHTML.includes(card.guideText.split('\n')[0]));
+  assert(api.els.pointDialogContent.innerHTML.includes(card.visualEvidence.images[0].caption));
+  assert(api.els.pointDialogContent.innerHTML.includes(card.sources[0].url));
+  const seed=seeds.find(seed=>seed.id===card.id);
+  assert.equal(seed.latitude,null);assert.equal(seed.longitude,null);
+  assert.equal(seed.content.guideText,card.guideText);
+  assert.equal(seed.content.visualEvidence.images[0].url,card.visualEvidence.images[0].url);
+  const editor=api.pointRecordForEditor(card.id);
+  assert.equal(editor.content.guideText,card.guideText);
+  assert.equal(editor.content.image,card.image);
+  assert.equal(editor.content.visualEvidence.images[0].url,card.visualEvidence.images[0].url);
+}
+assert(api.els.planGrid.innerHTML.includes('Фото и документы'),'Evidence is reachable from the route plan');
 for (const id of ['krestovsky-prospect','kem-fortress','mill-street','malyshev-street']) {
   const p=api.selectedRoutePoints().find(p=>p.id===id);assert(p);assert.equal(p.coordinates,null);
 }
 api.openPoint('slon-office');assert(api.els.pointDialogContent.innerHTML.includes('Лихачёв'));
-assert(api.els.pointDialogContent.innerHTML.includes('Два разных времени'));
-api.openPoint('humpback-bridge');assert(api.els.pointDialogContent.innerHTML.includes('Кемь глазами Вудса'));
-api.openPoint('revolution-square');assert(api.els.pointDialogContent.innerHTML.includes('Что сообщила делегация'));
+api.openPoint('intervention-kem-winter');assert(api.els.pointDialogContent.innerHTML.includes('Филиппа Вудса'));
+api.openPoint('intervention-july-1918');assert(api.els.pointDialogContent.innerHTML.includes('24 июля 1918'));
 api.openPoint('slon-office');
 api.renderGuide();assert(api.els.guideContent.innerHTML.includes('Лихачёв'));
 api.selectRoute('main');api.openPoint('slon-office');
 assert(!api.els.pointDialogContent.innerHTML.includes('Темы этого маршрута'),'Route supplements do not alter the general card');
 api.selectRoute('annunciation-assumption');
-assert.equal((api.els.routeOverviewContent.innerHTML.match(/data-point-id=/g)||[]).length,13);
+assert.equal((api.els.routeOverviewContent.innerHTML.match(/data-point-id=/g)||[]).length,21);
 api.state.completed.add('annunciation');api.saveProgress();
-assert.equal(api.els.progressText.textContent,'1 из 13 точек');
-api.renderGuide();assert(api.els.guideStep.textContent.includes('из 13'));
+assert.equal(api.els.progressText.textContent,'1 из 21 точек');
+api.renderGuide();assert(api.els.guideStep.textContent.includes('из 21'));
 api.selectRoute('main');
 assert.equal(api.els.routeOverview.hidden,true);
 assert.equal(api.els.routeOverviewContent.innerHTML,'');
@@ -178,7 +203,7 @@ api.state.routeDraft = [[64.945,34.61],[64.946,34.62]];
   assert(api.els.planGrid.innerHTML.includes('Ещё не отмечена на карте'));
   const definition=context.window.KEM_ROUTES.find(r=>r.id==='annunciation-assumption');
   definition.pointIds.push('annunciation');
-  api.selectRoute(definition.id);assert.equal(api.selectedRoutePoints().length,13,'Duplicate IDs do not create duplicate stops');definition.pointIds.pop();
+  api.selectRoute(definition.id);assert.equal(api.selectedRoutePoints().length,21,'Duplicate IDs do not create duplicate stops');definition.pointIds.pop();
   api.state.sharedPhotos=[
     {id:'route-photo',pointId:'annunciation',pointNumber:999,title:'Собор',src:'image.jpg'},
     {id:'other-photo',pointId:'station',pointNumber:999,title:'Вокзал',src:'image.jpg'}
@@ -208,9 +233,25 @@ api.state.routeDraft = [[64.945,34.61],[64.946,34.62]];
   const html=read('index.html'); const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
   assert.equal(ids.length,new Set(ids).size);
   for(const id of ['routeSelect','routeDescription','routeLineNote','routePointCount','routeEditorTitle','routeOverview','routeOverviewContent','routePlanRouteName'])assert(ids.includes(id));
-  for(const name of ['app.js','community.js','routes.js','sw.js'])new vm.Script(read(name),{filename:name});
+  for(const name of ['app.js','community.js','routes.js','intervention-cards.js','sw.js'])new vm.Script(read(name),{filename:name});
   const css=read('styles.css'); assert.equal([...css.matchAll(/\{/g)].length,[...css.matchAll(/\}/g)].length);
   assert(read('sw.js').includes('"./routes.js"'));
-  console.log(JSON.stringify({syntax:'passed',builtInRoutes:3,mainPoints:46,shortRoutePoints:9,cathedralRoutePoints:13,routeOverview:'passed',allViewNumbering:'passed',bothMapProviders:'passed',unmappedSharedPoint:'passed',progressIsolation:'passed',lineIsolation:'passed',draftAndSaveGuards:'passed',emptyRoute:'passed',outOfRouteCards:'passed',quotaFailure:'passed'}));
+  assert(read('sw.js').includes('"./intervention-cards.js"'));
+  // Later placement and participant edits keep their text, cover and evidence.
+  const savedCard=JSON.parse(JSON.stringify(seeds.find(seed=>seed.id==='intervention-woods-regiment')));
+  savedCard.latitude=64.955;savedCard.longitude=34.604;
+  savedCard.content.guideText='Дополненный участником рассказ о Вудсе';
+  savedCard.content.coverImage='https://example.com/participant-cover.jpg';
+  api.applySharedWorkspace({points:[savedCard],photos:[],waypoints:[],routes:[]});
+  api.selectRoute('annunciation-assumption');
+  const placed=api.selectedRoutePoints().find(point=>point.id===savedCard.id);
+  assert.deepEqual(Array.from(placed.coordinates),[64.955,34.604]);
+  assert.equal(placed.guideText,savedCard.content.guideText);
+  assert.equal(placed.image,savedCard.content.coverImage);
+  const placedEditor=api.pointRecordForEditor(savedCard.id);
+  assert.equal(placedEditor.content.guideText,savedCard.content.guideText);
+  assert.equal(placedEditor.content.coverImage,savedCard.content.coverImage);
+  assert.equal(placedEditor.content.visualEvidence.images[0].url,savedCard.content.visualEvidence.images[0].url);
+  console.log(JSON.stringify({syntax:'passed',builtInRoutes:3,mainPoints:54,shortRoutePoints:9,cathedralRoutePoints:21,interventionCards:8,unmappedCardContentAndSeeds:'passed',routeOverview:'passed',allViewNumbering:'passed',bothMapProviders:'passed',unmappedSharedPoint:'passed',progressIsolation:'passed',lineIsolation:'passed',draftAndSaveGuards:'passed',emptyRoute:'passed',outOfRouteCards:'passed',quotaFailure:'passed'}));
 })().catch(error=>{console.error(error);process.exitCode=1;});
 
