@@ -1221,7 +1221,11 @@
   }
 
   function renderPhotos() {
-    els.photoStrip.innerHTML = allPhotos().filter(photo => pointIsOnSelectedRoute(photo.pointId)).map(photo => `<button class="photo-card${photo.isDraft ? " photo-card--draft" : ""}" type="button" data-photo-id="${photo.id}"><img src="${photo.src}" alt="" loading="lazy"><span class="photo-card__copy"><span>${photo.isDraft ? "Черновик" : `Точка ${escapeHtml(photoPointDetails(photo.pointId)?.number ?? "—")}`}</span><strong>${escapeHtml(photo.title)}</strong><small>${escapeHtml(photo.date || "Дата уточняется")}</small></span></button>`).join("");
+    const routeOrder = new Map(selectedRoutePoints().map((point, index) => [point.id, index]));
+    els.photoStrip.innerHTML = allPhotos()
+      .filter(photo => pointIsOnSelectedRoute(photo.pointId))
+      .sort((a, b) => routeOrder.get(a.pointId) - routeOrder.get(b.pointId))
+      .map(photo => `<button class="photo-card${photo.isDraft ? " photo-card--draft" : ""}" type="button" data-photo-id="${escapeHtml(photo.id)}"><img src="${escapeHtml(photo.src)}" alt="${escapeHtml(photo.alt || photo.title)}" loading="lazy" decoding="async"><span class="photo-card__copy"><span>${photo.isDraft ? "Черновик" : `Точка ${escapeHtml(photoPointDetails(photo.pointId)?.number ?? "—")}`}</span><strong>${escapeHtml(photo.title)}</strong><small>${escapeHtml(photo.date || "Дата уточняется")}</small><small class="photo-card__caption">${escapeHtml(photo.caption || "")}</small><small class="photo-card__author">Автор: ${escapeHtml(photo.author || "Не указан")}</small></span></button>`).join("");
   }
 
   function openPhoto(photoId) {

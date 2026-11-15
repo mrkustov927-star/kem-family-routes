@@ -26,7 +26,7 @@ const context = {
   document: { querySelector: node, querySelectorAll: () => [], createElement: () => node('generated:'+generatedNodeId++) }, URL, console, Map, Set,
 };
 vm.createContext(context);
-for (const name of ['points.js','research-cards.js','visual-evidence.js','route-geometry.js','routes.js']) vm.runInContext(read(name), context);
+for (const name of ['points.js','research-cards.js','visual-evidence.js','route-geometry.js','routes.js','photos.js']) vm.runInContext(read(name), context);
 const boundary = source.indexOf('  window.openKemPoint = openPoint;');
 assert(boundary > 0);
 vm.runInContext(source.slice(0,boundary) + '\nwindow.testRoutes={state,els,selectRoute,selectedRoutePoints,selectedRouteGeometry,activeRouteLine,applySharedWorkspace,updateProgress,saveProgress,renderGuide,openPoint,saveSharedRoute,selectedRouteIssues,pointDisplayNumber,renderPlan,renderPlanFilters,renderPoints,renderYandexObjects,redrawLeafletRoute,renderPhotos,photoPointDetails};\n})();', context);
@@ -177,6 +177,22 @@ api.state.routeDraft = [[64.945,34.61],[64.946,34.62]];
   assert(api.els.photoStrip.innerHTML.includes('Точка 1'));
   assert(!api.els.photoStrip.innerHTML.includes('999'));
   assert(!api.els.photoStrip.innerHTML.includes('other-photo'));
+  const collection = context.window.KEM_PHOTOS.filter(photo => photo.id.startsWith('collection-'));
+  assert.equal(collection.length,53);
+  assert.equal(new Set(collection.map(photo=>photo.id)).size,53);
+  for (const photo of collection) {
+    assert(fs.existsSync(path.join(root,photo.src)), 'Missing imported image: '+photo.src);
+    assert(context.window.KEM_ROUTE.plannedPoints.some(point=>point.id===photo.pointId), 'Unmapped photo: '+photo.id);
+    assert(photo.caption && photo.author && photo.source && photo.rightsStatus, 'Missing photo credit: '+photo.id);
+  }
+  assert(api.els.photoStrip.innerHTML.includes('Автор: Не указан в подборке'));
+  assert(api.els.photoStrip.innerHTML.includes('Рисунок деревянного укрепления'));
+  const shownIds=[...api.els.photoStrip.innerHTML.matchAll(/data-photo-id="([^"]+)"/g)].map(match=>match[1]);
+  const shown=shownIds.map(id=>context.window.KEM_PHOTOS.find(photo=>photo.id===id)||api.state.sharedPhotos.find(photo=>photo.id===id));
+  const routeIds=api.selectedRoutePoints().map(point=>point.id);
+  assert(shown.every((photo,index)=>index===0||routeIds.indexOf(shown[index-1].pointId)<=routeIds.indexOf(photo.pointId)), 'Gallery follows route order');
+  api.selectRoute('ckis-assumption'); api.renderPhotos();
+  assert(!api.els.photoStrip.innerHTML.includes('collection-golodnukha-26'), 'Other-route photos stay hidden');
   api.state.yandexReady=false;api.state.yandexMap=null;api.state.routeLayer=null;context.L=context.window.L=undefined;
 
   const html=read('index.html'); const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
