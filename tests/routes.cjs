@@ -14,7 +14,7 @@ function node(key) {
     innerHTML: '', textContent: '', value: '', hidden: true, open: false, disabled: false, dataset: {}, style: {}, options: [],
     classList: { add(){}, remove(){}, toggle(){} }, querySelectorAll: () => [],
     querySelector: selector => node(key + selector), addEventListener(){}, setAttribute(){},
-    scrollIntoView(){}, showModal(){this.open = true;}, close(){this.open = false;}
+    reset(){}, scrollIntoView(){}, showModal(){this.open = true;}, close(){this.open = false;}
   });
   return nodes.get(key);
 }
@@ -31,7 +31,7 @@ for (const name of ['points.js','research-cards.js','visual-evidence.js','route-
 vm.runInContext(read('intervention-cards.js'), context);
 const boundary = source.indexOf('  window.openKemPoint = openPoint;');
 assert(boundary > 0);
-vm.runInContext(source.slice(0,boundary) + '\nwindow.testRoutes={state,els,selectRoute,selectedRoutePoints,selectedRouteGeometry,activeRouteLine,applySharedWorkspace,updateProgress,saveProgress,renderGuide,openPoint,saveSharedRoute,selectedRouteIssues,pointDisplayNumber,renderPlan,renderPlanFilters,renderPoints,renderYandexObjects,redrawLeafletRoute,renderPhotos,photoPointDetails,pointSeedRecords,pointRecordForEditor};\n})();', context);
+vm.runInContext(source.slice(0,boundary) + '\nwindow.testRoutes={state,els,selectRoute,selectedRoutePoints,selectedRouteGeometry,activeRouteLine,applySharedWorkspace,updateProgress,saveProgress,renderGuide,openPoint,saveSharedRoute,selectedRouteIssues,pointDisplayNumber,renderPlan,renderPlanFilters,renderPoints,renderYandexObjects,redrawLeafletRoute,renderPhotos,photoPointDetails,pointSeedRecords,pointRecordForEditor,pointCover,pointCoverMarkup,isPlaceholderCover,pointLabel,allPhotos,openSharedPointEditor};\n})();', context);
 const api = context.window.testRoutes;
 api.state.community.authenticated = true;
 api.state.routeCoordinates = api.selectedRouteGeometry();
@@ -160,7 +160,7 @@ api.state.routeDraft = [[64.945,34.61],[64.946,34.62]];
 
   // Every visible number comes from the selected route, even when stored orders have gaps.
   api.applySharedWorkspace({points:[
-    {id:'station',route_order:508,title:'Вокзал — правка участника',short_title:'Вокзал — правка участника',chapter:'railway',status:'published',latitude:64.95,longitude:34.57,content:{researchRevision:'20260724-1',intro:'Сохранённый текст участника'}},
+    {id:'station',route_order:508,title:'Вокзал — правка участника',short_title:'',chapter:'railway',status:'published',latitude:64.95,longitude:34.57,content:{researchRevision:'20260724-1',intro:'Сохранённый текст участника'}},
     {id:'shared-no-location',route_order:901,title:'Черновик без координат',chapter:'river',status:'draft',latitude:null,longitude:null,content:{}}
   ],photos:[],waypoints:mainLine,routes:[]});
   assert(api.selectedRoutePoints().some(p=>p.id==='shared-no-location'),'Unmapped shared records remain in the same route list');
@@ -252,6 +252,54 @@ api.state.routeDraft = [[64.945,34.61],[64.946,34.62]];
   assert.equal(placedEditor.content.guideText,savedCard.content.guideText);
   assert.equal(placedEditor.content.coverImage,savedCard.content.coverImage);
   assert.equal(placedEditor.content.visualEvidence.images[0].url,savedCard.content.visualEvidence.images[0].url);
+  assert.equal(api.pointCover(placed).src,savedCard.content.coverImage,'Participant-selected covers remain authoritative');
+
+  // The editor displays the current route number and does not replace the saved catalogue order.
+  const renamed=JSON.parse(JSON.stringify(seeds.find(seed=>seed.id==='krestovsky-prospect')));
+  renamed.route_order=2;renamed.title='Крестовский проспект — новое название';renamed.short_title='';
+  api.applySharedWorkspace({points:[renamed,savedCard],photos:[
+    {id:'legacy-krestovsky',point_id:'annunciation',title:'Крестовский проспект',publicUrl:'https://example.com/krestovsky.jpg',caption:'Исторический снимок проспекта',author:'Неизвестен',status:'draft'}
+  ],waypoints:[],routes:[]});
+  api.selectRoute('annunciation-assumption');
+  const street=api.selectedRoutePoints().find(point=>point.id===renamed.id);
+  assert.equal(api.pointLabel(street),renamed.title,'Clearing a short title uses the newly saved full title');
+  assert(api.els.pointsList.innerHTML.includes(renamed.title));
+  assert(api.els.planGrid.innerHTML.includes(renamed.title));
+  assert(api.els.routeOverviewContent.innerHTML.includes(renamed.title));
+  api.openSharedPointEditor(renamed.id);
+  assert.equal(node('#sharedPointRouteNumber').value,4);
+  assert.equal(node('#sharedPointOrder').value,2,'Displayed route number never overwrites catalogue order');
+  assert(/id="sharedPointRouteNumber" readonly/.test(html));
+  assert(/id="sharedPointOrder" name="routeOrder" type="hidden"/.test(html));
+  const legacy=api.allPhotos().find(photo=>photo.id==='legacy-krestovsky');
+  assert.equal(legacy.pointId,'krestovsky-prospect');
+  assert.equal(api.pointCover(street).photoId,legacy.id,'An exact street view wins over a contextual photograph');
+  api.openPoint(street.id);
+  assert(api.els.pointDialogContent.innerHTML.includes('class="point-cover-image" src="'+legacy.src+'"'));
+  assert(api.els.pointDialogContent.innerHTML.includes('Автор: Неизвестен'));
+  api.renderGuide();
+  assert(api.els.guideContent.innerHTML.includes('class="point-cover-image" src="'+legacy.src+'"'));
+
+  // Audit every catalogue card: use its own gallery material, and never render the logo as a cover.
+  api.selectRoute('main');
+  const audit=Array.from(api.selectedRoutePoints().filter(point=>seeds.some(seed=>seed.id===point.id)),point=>{
+    const cover=api.pointCover(point);
+    const direct=api.allPhotos().filter(photo=>photo.pointId===point.id && photo.autoCover!==false);
+    if(direct.length && !point.coverImage){
+      assert(direct.some(photo=>photo.src===cover?.src),'Cover belongs to the point: '+point.id);
+    }
+    api.openPoint(point.id);
+    const rendered=api.els.pointDialogContent.innerHTML.match(/class="point-cover-image" src="([^"]+)"/);
+    if(rendered)assert(!api.isPlaceholderCover(rendered[1]),'No placeholder logo: '+point.id);
+    else assert(api.els.pointDialogContent.innerHTML.includes('Фотография этой точки пока не добавлена.'));
+    return {id:point.id,cover:Boolean(cover)};
+  });
+  const cathedral=api.selectedRoutePoints().find(point=>point.id==='assumption-cathedral');
+  assert.notEqual(api.pointCover(cathedral).photoId,'collection-assumption-cathedral-41','A nearby house cannot become the cathedral cover');
+  for(const [id,photoId] of [['revolution-square','collection-revolution-square-57'],['humpback-bridge','collection-humpback-bridge-21'],['pomorye-museum','collection-pomorye-museum-51']]){
+    assert.equal(api.pointCover(api.selectedRoutePoints().find(point=>point.id===id)).photoId,photoId);
+  }
+  console.log(JSON.stringify({coverAudit:{checked:audit.length,withImage:audit.filter(point=>point.cover).length,withoutImage:audit.filter(point=>!point.cover).map(point=>point.id)},editorRouteNumber:'passed',clearedShortTitle:'passed',legacyStreetPhoto:'passed',coverCredits:'passed'}));
   console.log(JSON.stringify({syntax:'passed',builtInRoutes:3,mainPoints:54,shortRoutePoints:9,cathedralRoutePoints:21,interventionCards:8,unmappedCardContentAndSeeds:'passed',routeOverview:'passed',allViewNumbering:'passed',bothMapProviders:'passed',unmappedSharedPoint:'passed',progressIsolation:'passed',lineIsolation:'passed',draftAndSaveGuards:'passed',emptyRoute:'passed',outOfRouteCards:'passed',quotaFailure:'passed'}));
 })().catch(error=>{console.error(error);process.exitCode=1;});
 

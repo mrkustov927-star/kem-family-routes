@@ -150,8 +150,8 @@ h1 span { color: var(--red); }
 .coordinate-draft-marker { width: 34px; height: 34px; display: grid; place-items: center; border: 3px solid white; border-radius: 50% 50% 50% 10%; transform: rotate(-45deg); background: var(--green); color: white; box-shadow: 0 5px 18px rgba(16,42,67,.34); font-weight: 950; }
 .coordinate-draft-marker--new { background: var(--blue); }
 .coordinate-draft-marker span { transform: rotate(45deg); }
-.custom-point-marker { width: 220px; min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; color: var(--navy); }
-.custom-point-marker__label { max-width: 210px; padding: 6px 10px; overflow: hidden; border: 2px solid white; border-radius: 999px; background: var(--navy); color: white; box-shadow: 0 4px 14px rgba(16,42,67,.3); font-size: 12px; font-weight: 850; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.custom-point-marker { position: relative; width: 220px; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; color: var(--navy); }
+.custom-point-marker__label { position: absolute; bottom: 32px; width: max-content; max-width: 210px; padding: 6px 10px; border: 2px solid white; border-radius: 14px; background: var(--navy); color: white; box-shadow: 0 4px 14px rgba(16,42,67,.3); font-size: 12px; font-weight: 850; line-height: 1.25; text-align: center; overflow-wrap: anywhere; white-space: normal; }
 .custom-point-marker__pin { width: 34px; height: 34px; margin-top: -2px; display: grid; place-items: center; border: 3px solid white; border-radius: 50% 50% 50% 10%; background: var(--blue); color: white; box-shadow: 0 5px 18px rgba(16,42,67,.34); transform: rotate(-45deg); font-size: 12px; font-weight: 950; }
 .custom-point-marker__pin i { transform: rotate(45deg); font-style: normal; }
 .custom-point-marker--route .custom-point-marker__pin { background: var(--red); }
@@ -253,6 +253,10 @@ dialog::backdrop { background: rgba(9,26,40,.66); backdrop-filter: blur(3px); }
 .dialog-shell h2 { margin: 0 38px 14px 0; color: var(--navy); font-size: clamp(30px, 5vw, 48px); line-height: 1; letter-spacing: -.04em; }
 .dialog-visual { position: relative; margin: 24px 0; border-radius: 18px; overflow: hidden; background: var(--navy); }
 .dialog-visual img { width: 100%; display: block; }
+.point-cover { min-width: 0; }
+.point-cover-caption { margin: 10px 0 24px; color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.point-cover-caption .text-button { font-size: inherit; }
+.point-cover-empty { display: grid; place-items: center; min-height: 240px; margin: 0; padding: 28px; color: white; text-align: center; }
 .dialog-visual img[src$="/default-point-cover.jpg"],
 .guide-visual img[src$="/default-point-cover.jpg"] { object-fit: contain; background: #fff; }
 .dialog-visual--custom img { aspect-ratio: 16 / 10; object-fit: cover; }

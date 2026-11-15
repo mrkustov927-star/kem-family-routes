@@ -311,7 +311,8 @@
       els.routeOverviewContent.innerHTML = "";
       return;
     }
-    const stops = (overview.stops || []).map(stop => `<li><button class="route-overview__point" type="button" data-point-id="${escapeHtml(stop.id)}">${escapeHtml(stop.title)}</button><p>${escapeHtml(stop.text)}</p>${routeStopSections(stop)}${stop.check ? `<details class="route-stop-check"><summary>Что ещё уточнить</summary><p>${escapeHtml(stop.check)}</p></details>` : ""}</li>`).join("");
+    const pointsById = new Map(selectedRoutePoints().map(point => [point.id, point]));
+    const stops = (overview.stops || []).filter(stop => pointsById.has(stop.id)).map(stop => `<li><button class="route-overview__point" type="button" data-point-id="${escapeHtml(stop.id)}">${escapeHtml(pointLabel(pointsById.get(stop.id)))}</button><p>${escapeHtml(stop.text)}</p>${routeStopSections(stop)}${stop.check ? `<details class="route-stop-check"><summary>Что ещё уточнить</summary><p>${escapeHtml(stop.check)}</p></details>` : ""}</li>`).join("");
     const additions = (overview.additions || []).map(item => {
       const url = safeExternalUrl(item.url);
       const title = item.pointId
@@ -415,7 +416,76 @@
 
   function allPhotos() {
     const items = [...photos, ...state.sharedPhotos, ...state.photoDrafts];
-    return [...new Map(items.map(photo => [photo.id, photo])).values()];
+    return [...new Map(items.map(photo => [photo.id, photo])).values()].map(photo => {
+      // The early upload form attached this named street view to the cathedral.
+      if (photo.pointId === "annunciation" && photo.title?.trim().toLocaleLowerCase("ru") === "крестовский проспект") {
+        return { ...photo, pointId: "krestovsky-prospect" };
+      }
+      return photo;
+    });
+  }
+
+  function pointLabel(point) {
+    return String(point.shortTitle || point.short_title || point.title || "Точка маршрута");
+  }
+
+  function isPlaceholderCover(src) {
+    return !src || /(?:^|\/)(?:icon\.svg|default-point-cover\.jpg)(?:[?#]|$)/i.test(src)
+      || /\/assets\/illustrations\//i.test(src);
+  }
+
+  function pointCover(point) {
+    const gallery = allPhotos();
+    const fromPhoto = photo => ({
+      src: photo.src, alt: photo.alt || photo.title, caption: photo.caption || photo.title,
+      credit: `Автор: ${photo.author || "Не указан"}`, source: photo.source || "", photoId: photo.id
+    });
+    if (!isPlaceholderCover(point.coverImage)) {
+      const photo = gallery.find(photo => photo.src === point.coverImage);
+      return photo ? fromPhoto(photo) : { src: point.coverImage, alt: point.imageAlt || point.title };
+    }
+    const candidates = gallery.filter(photo => photo.autoCover !== false && !isPlaceholderCover(photo.src)
+      && (photo.pointId === point.id || photo.relatedPointIds?.includes(point.id)));
+    candidates.sort((a, b) =>
+      Number(a.pointId !== point.id) - Number(b.pointId !== point.id)
+      || Number(Boolean(a.isDraft)) - Number(Boolean(b.isDraft))
+      || (b.coverPriority || 0) - (a.coverPriority || 0));
+    if (candidates.length) return fromPhoto(candidates[0]);
+    const images = pointVisualEvidence(point.id).images;
+    const evidence = Array.isArray(images) ? images.filter(image => image && typeof image === "object") : [];
+    if (!isPlaceholderCover(point.image)) {
+      const photo = gallery.find(photo => photo.src === point.image && photo.autoCover !== false);
+      if (photo) return fromPhoto(photo);
+      const image = evidence.find(image => image.url === point.image);
+      return { src: point.image, alt: point.imageAlt || point.title, caption: image?.caption,
+        credit: image?.credit, source: image?.source };
+    }
+    const image = evidence.find(image => !isPlaceholderCover(image.url));
+    return image ? { src: image.url, alt: image.alt || image.caption || point.title,
+      caption: image.caption, credit: image.credit, source: image.source } : null;
+  }
+
+  function pointCoverMarkup(point, mode, actions = "") {
+    const cover = pointCover(point);
+    const className = mode === "guide" ? "guide-visual" : "dialog-visual";
+    const caption = cover && [cover.caption, cover.credit].filter(Boolean).map(escapeHtml).join(" · ");
+    const source = cover?.source ? (/^https?:\/\//i.test(cover.source) && safeExternalUrl(cover.source)
+      ? `<a href="${escapeHtml(safeExternalUrl(cover.source))}" target="_blank" rel="noopener noreferrer">Источник изображения</a>`
+      : escapeHtml(cover.source)) : "";
+    const galleryLink = cover?.photoId ? `<button class="text-button" type="button" data-photo-id="${escapeHtml(cover.photoId)}">Открыть в галерее</button>` : "";
+    return `<div class="point-cover"><div class="${className}${point.coverImage && mode !== "guide" ? " dialog-visual--custom" : ""}">${cover ? `<img class="point-cover-image" src="${escapeHtml(cover.src)}" alt="${escapeHtml(cover.alt)}">` : ""}<p class="point-cover-empty"${cover ? " hidden" : ""}>${cover ? "Фотография временно недоступна." : "Фотография этой точки пока не добавлена."}</p>${actions}</div>${caption || source || galleryLink ? `<p class="point-cover-caption">${[caption, source, galleryLink].filter(Boolean).join(" · ")}</p>` : ""}</div>`;
+  }
+
+  function bindPointCoverFallbacks(container) {
+    container.querySelectorAll(".point-cover-image").forEach(image => {
+      const showMissing = () => {
+        image.hidden = true;
+        const notice = image.parentElement.querySelector(".point-cover-empty");
+        if (notice) notice.hidden = false;
+      };
+      image.addEventListener("error", showMissing, { once: true });
+      if (image.complete && !image.naturalWidth) showMissing();
+    });
   }
 
   function userRole() {
@@ -456,7 +526,7 @@
   }
 
   function guidedPointMarkerHtml(point, needsCheck = false) {
-    return namedPointMarkerHtml(point.shortTitle || point.title, pointDisplayNumber(point), needsCheck ? "check" : "route");
+    return namedPointMarkerHtml(pointLabel(point), pointDisplayNumber(point), needsCheck ? "check" : "route");
   }
 
   function photoPointDetails(pointId) {
@@ -570,7 +640,8 @@
       number: record.route_order ?? existing?.number ?? "+",
       chapter: record.chapter || existing?.chapter || curated?.chapter || "railway",
       title: record.title || existing?.title || curated?.title || "Новая точка",
-      shortTitle: record.short_title || existing?.shortTitle || record.title,
+      shortTitle: Object.prototype.hasOwnProperty.call(record, "short_title")
+        ? record.short_title || record.title : existing?.shortTitle || record.title,
       coordinates: hasCoordinates ? [record.latitude, record.longitude] : existing?.coordinates || null,
       coordinateStatus: record.coordinate_status || existing?.coordinateStatus || "needs-check",
       coordinateNote: content.coordinateNote || existing?.coordinateNote || "Координату и место остановки нужно проверить.",
@@ -928,7 +999,7 @@
           popupAnchor: [0, -58]
         })
       }).addTo(state.routeLayer);
-      marker.bindPopup(`<strong>${escapeHtml(point.shortTitle)}</strong><br><small>${needsCheck ? "Координату проверить" : "Координата проверена"}</small><br><button class="popup-button" onclick="window.openKemPoint('${point.id}')">Открыть подсказку →</button>`);
+      marker.bindPopup(`<strong>${escapeHtml(pointLabel(point))}</strong><br><small>${needsCheck ? "Координату проверить" : "Координата проверена"}</small><br><button class="popup-button" onclick="window.openKemPoint('${point.id}')">Открыть подсказку →</button>`);
       marker.on("click", () => highlightPoint(point.id));
       state.markers.set(point.id, marker);
     });
@@ -1027,7 +1098,7 @@
       addYandexMarker(
         point.coordinates,
         guidedPointMarkerHtml(point, needsCheck),
-        `${pointNumber}. ${point.shortTitle}`,
+        `${pointNumber}. ${pointLabel(point)}`,
         () => openPoint(point.id)
       );
     });
@@ -1223,7 +1294,7 @@
       const addPhotoAction = `<button class="plan-action" type="button" data-add-photo-point="${escapeHtml(point.id)}">＋ Фото</button>`;
       const statusText = curated ? "✓ исторический материал подготовлен" : ready ? "✓ карточка готова" : "○ исследуем";
       const coordinateNote = Array.isArray(point.coordinates) ? "" : '<span class="plan-coordinate-note">Ещё не отмечена на карте</span>';
-      return `<li class="plan-item ${ready ? "plan-item--ready" : ""}" data-route-point-id="${escapeHtml(point.id)}"><span class="plan-item__number">${escapeHtml(pointDisplayNumber(point))}</span><div><h3>${escapeHtml(point.shortTitle || point.title)}</h3>${summary ? `<p class="plan-item__summary">${escapeHtml(summary)}</p>` : ""}<div class="plan-item__meta"><span class="plan-status">${statusText}</span>${coordinateNote}${photoAction}${addPhotoAction}${action}${editAction}</div></div></li>`;
+      return `<li class="plan-item ${ready ? "plan-item--ready" : ""}" data-route-point-id="${escapeHtml(point.id)}"><span class="plan-item__number">${escapeHtml(pointDisplayNumber(point))}</span><div><h3>${escapeHtml(pointLabel(point))}</h3>${summary ? `<p class="plan-item__summary">${escapeHtml(summary)}</p>` : ""}<div class="plan-item__meta"><span class="plan-status">${statusText}</span>${coordinateNote}${photoAction}${addPhotoAction}${action}${editAction}</div></div></li>`;
     }).join("") : '<li class="plan-empty">В этом маршруте пока нет точек для выбранного раздела.</li>';
   }
 
@@ -1383,7 +1454,7 @@
       await community.savePoint({ ...record, content });
       await refreshCommunityWorkspace({ quiet: true });
       openPoint(pointId);
-      showToast("Исходная иллюстрация возвращена");
+      showToast("Обложка снова выбирается из фотографий точки");
     } catch (error) {
       showToast(error.message || "Не удалось вернуть исходную обложку");
     }
@@ -1749,7 +1820,7 @@
     els.pointsList.innerHTML = visible.map(point => {
       const chapter = route.chapters.find(item => item.id === point.chapter);
       const done = state.completed.has(point.id) ? " · пройдено" : "";
-      return `<li><button class="point-card" type="button" data-point-id="${escapeHtml(point.id)}" data-status="${escapeHtml(point.coordinateStatus)}"><span class="point-card__number">${escapeHtml(pointDisplayNumber(point))}</span><strong>${escapeHtml(point.shortTitle)}</strong><small>${escapeHtml(chapter?.title || "Маршрут")} · ${escapeHtml(point.duration)}${Array.isArray(point.coordinates) ? "" : " · ещё не отмечена на карте"}${done}</small></button></li>`;
+      return `<li><button class="point-card" type="button" data-point-id="${escapeHtml(point.id)}" data-status="${escapeHtml(point.coordinateStatus)}"><span class="point-card__number">${escapeHtml(pointDisplayNumber(point))}</span><strong>${escapeHtml(pointLabel(point))}</strong><small>${escapeHtml(chapter?.title || "Маршрут")} · ${escapeHtml(point.duration)}${Array.isArray(point.coordinates) ? "" : " · ещё не отмечена на карте"}${done}</small></button></li>`;
     }).join("");
   }
 
@@ -2001,7 +2072,7 @@
     const coverActions = userIsAuthenticated() ? `
       <div class="dialog-visual__actions" aria-label="Обложка карточки">
         <button class="dialog-visual__button" type="button" data-change-point-cover="${escapeHtml(point.id)}">▣ Изменить обложку</button>
-        ${point.coverImage ? `<button class="dialog-visual__button dialog-visual__button--danger" type="button" data-reset-point-cover="${escapeHtml(point.id)}">Вернуть исходную</button>` : ""}
+        ${point.coverImage ? `<button class="dialog-visual__button dialog-visual__button--danger" type="button" data-reset-point-cover="${escapeHtml(point.id)}">Вернуть фото из галереи</button>` : ""}
       </div>` : "";
     const researchMeta = point.researchPeriod || point.researchConfidence
       ? `<p class="point-research-meta">${point.researchPeriod ? `<span><strong>Период:</strong> ${escapeHtml(point.researchPeriod)}</span>` : ""}${point.researchConfidence ? `<span><strong>Проверка:</strong> уровень ${escapeHtml(point.researchConfidence)}</span>` : ""}</p>`
@@ -2012,7 +2083,7 @@
       <h2>${escapeHtml(point.title)}</h2>
       ${researchMeta}
       <p class="lead">${escapeHtml(point.intro)}</p>
-      <div class="dialog-visual${point.coverImage ? " dialog-visual--custom" : ""}"><img src="${escapeHtml(point.image)}" alt="${escapeHtml(point.imageAlt)}">${coverActions}</div>
+      ${pointCoverMarkup(point, "dialog", coverActions)}
       <h3>Текст экскурсии</h3><p class="guide-script">${escapeHtml(point.guideText)}</p>
       <h3>Факты и даты</h3>
       <ul class="fact-list">${point.facts.map(fact => `<li>${escapeHtml(fact)}</li>`).join("")}</ul>
@@ -2029,6 +2100,7 @@
         ${selectedIndex >= 0 ? `<button class="button button--primary" type="button" data-complete-point="${point.id}">${state.completed.has(point.id) ? "Отметить непройденной" : "Точка пройдена"}</button>` : ""}
       </div>`;
     bindEvidenceImageFallbacks(els.pointDialogContent);
+    bindPointCoverFallbacks(els.pointDialogContent);
     if (!els.pointDialog.open) els.pointDialog.showModal();
   }
 
@@ -2169,6 +2241,7 @@
     els.sharedPointForm.reset();
     document.querySelector("#sharedPointId").value = point.id;
     document.querySelector("#sharedPointOrder").value = point.route_order ?? "";
+    document.querySelector("#sharedPointRouteNumber").value = pointDisplayNumber(point);
     document.querySelector("#sharedPointChapter").value = point.chapter || "railway";
     document.querySelector("#sharedPointTitle").value = point.title || "";
     document.querySelector("#sharedPointShortTitle").value = point.short_title || "";
@@ -2246,7 +2319,7 @@
     document.querySelector("#nextPointButton").disabled = false;
     els.guideStep.textContent = `Точка ${state.currentPointIndex + 1} из ${points.length} · ${selectedRoute().title}`;
     els.guideContent.innerHTML = `<div class="guide-layout">
-      <div class="guide-visual"><img src="${escapeHtml(point.image)}" alt="${escapeHtml(point.imageAlt)}"></div>
+      ${pointCoverMarkup(point, "guide")}
       <div class="guide-copy">
         ${statusBadge(point)}
         <h2>${escapeHtml(point.title)}</h2>
@@ -2267,6 +2340,7 @@
       </div>
     </div>`;
     bindEvidenceImageFallbacks(els.guideContent);
+    bindPointCoverFallbacks(els.guideContent);
     document.querySelector("#previousPointButton").disabled = state.currentPointIndex === 0;
     document.querySelector("#nextPointButton").textContent = state.currentPointIndex === points.length - 1 ? "Завершить маршрут" : "Следующая точка";
   }

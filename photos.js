@@ -147,6 +147,7 @@ window.KEM_PHOTOS.push(...[
   },
   {
     "id": "collection-annunciation-17",
+    "relatedPointIds": ["krestovsky-prospect"],
     "pointId": "annunciation",
     "title": "Старая улица у Благовещенского собора",
     "src": "./assets/photos/excursion/annunciation-17.webp",
@@ -199,6 +200,7 @@ window.KEM_PHOTOS.push(...[
   },
   {
     "id": "collection-humpback-bridge-21",
+    "coverPriority": 10,
     "pointId": "humpback-bridge",
     "title": "Горбатый мост и Лепостров",
     "src": "./assets/photos/excursion/humpback-bridge-21.webp",
@@ -303,6 +305,7 @@ window.KEM_PHOTOS.push(...[
   },
   {
     "id": "collection-proletarsky-houses-29",
+    "coverPriority": 10,
     "pointId": "proletarsky-houses",
     "title": "Проспект Пролетарский со стороны «Маяка»",
     "src": "./assets/photos/excursion/proletarsky-houses-29.webp",
@@ -459,6 +462,7 @@ window.KEM_PHOTOS.push(...[
   },
   {
     "id": "collection-assumption-cathedral-41",
+    "autoCover": false,
     "pointId": "assumption-cathedral",
     "title": "Деревянный дом по пути к Успенскому собору",
     "src": "./assets/photos/excursion/assumption-cathedral-41.webp",
@@ -511,6 +515,7 @@ window.KEM_PHOTOS.push(...[
   },
   {
     "id": "collection-volna-47",
+    "coverPriority": 10,
     "pointId": "volna",
     "title": "Кинотеатр «Волна»: главный вход",
     "src": "./assets/photos/excursion/volna-47.webp",
@@ -563,6 +568,7 @@ window.KEM_PHOTOS.push(...[
   },
   {
     "id": "collection-pomorye-museum-51",
+    "coverPriority": 10,
     "pointId": "pomorye-museum",
     "title": "Музей «Поморье»: внешний вид",
     "src": "./assets/photos/excursion/pomorye-museum-51.webp",
@@ -576,6 +582,7 @@ window.KEM_PHOTOS.push(...[
   },
   {
     "id": "collection-kem-fortress-52",
+    "coverPriority": 10,
     "pointId": "kem-fortress",
     "title": "Остатки деревянной башни",
     "src": "./assets/photos/excursion/kem-fortress-52.webp",
@@ -641,6 +648,7 @@ window.KEM_PHOTOS.push(...[
   },
   {
     "id": "collection-revolution-square-57",
+    "coverPriority": 10,
     "pointId": "revolution-square",
     "title": "Сквер жертв революции",
     "src": "./assets/photos/excursion/revolution-square-57.webp",

@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://tile.openstreetmap.org">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <link rel="stylesheet" href="./styles.css?v=20261115-gallery-clean-1">
+  <link rel="stylesheet" href="./styles.css?v=20261115-point-presentation-1">
   <style>body.access-locked > :not(#authDialog):not(#toast):not(script){visibility:hidden;pointer-events:none} body.access-locked #authDialog .dialog-close{display:none}</style>
 </head>
 <body class="access-locked">
@@ -351,8 +351,9 @@
       <h2>Редактировать точку</h2>
       <p class="muted">Изменения сохранятся в общей базе и появятся у других участников. Источники и непроверенные сведения отмечайте прямо в тексте.</p>
       <input id="sharedPointId" name="id" type="hidden">
+      <input id="sharedPointOrder" name="routeOrder" type="hidden">
       <div class="coordinate-fields">
-        <label>Номер в маршруте<input id="sharedPointOrder" name="routeOrder" type="number" min="1" max="999"></label>
+        <label>Номер в выбранном маршруте<input id="sharedPointRouteNumber" readonly></label>
         <label>Глава<select id="sharedPointChapter" name="chapter" required></select></label>
       </div>
       <label>Полное название<input id="sharedPointTitle" name="title" required maxlength="180"></label>
@@ -422,13 +423,13 @@
   <script src="./points.js?v=20261115-routes-4"></script>
   <script src="./research-cards.js?v=20261115-routes-4"></script>
   <script src="./visual-evidence.js?v=20261115-cathedral-1"></script>
-  <script src="./photos.js?v=20261115-gallery-1"></script>
+  <script src="./photos.js?v=20261115-point-presentation-1"></script>
   <script src="./route-geometry.js"></script>
   <script src="./routes.js?v=20261115-cards-1"></script>
   <script src="./intervention-cards.js?v=20261115-cards-1"></script>
   <script src="./supabase-config.js?v=20260718-2"></script>
   <script src="./community.js?v=20261115-routes-1"></script>
-  <script src="./app.js?v=20261115-cards-1"></script>
+  <script src="./app.js?v=20261115-point-presentation-1"></script>
 </body>
 </html>
 
