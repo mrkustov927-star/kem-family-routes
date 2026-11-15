@@ -786,5 +786,71 @@ window.KEM_VISUAL_EVIDENCE = {
       }
     ],
     "next": "Уточнить условия публикации копий у музея и сравнить виды с планами."
+  },
+  "assumption-cathedral": {
+    "summary": "Три документальные фотографии с датами, авторами, ссылками на оригиналы и лицензиями. Общий вид 2013 года позволяет сравнить собор со снимками 2020 года. Архивные и научные материалы приведены ниже отдельными ссылками.",
+    "images": [
+      {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/%D0%9A%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81_%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_%D0%A1%D0%BE%D0%B1%D0%BE%D1%80%D0%B0_%D0%B2_%D0%9A%D0%B5%D0%BC%D0%B8_%D1%81%D0%B2%D0%B5%D1%80%D1%85%D1%83_(1)_tim.jpg/960px-%D0%9A%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81_%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_%D0%A1%D0%BE%D0%B1%D0%BE%D1%80%D0%B0_%D0%B2_%D0%9A%D0%B5%D0%BC%D0%B8_%D1%81%D0%B2%D0%B5%D1%80%D1%85%D1%83_(1)_tim.jpg",
+        "caption": "Комплекс Успенского собора с высоты. 12 октября 2020 года.",
+        "alt": "Успенский собор и окружающая застройка Лепострова, вид сверху в 2020 году",
+        "credit": "Красный / Wikimedia Commons, 12.10.2020",
+        "source": "https://commons.wikimedia.org/wiki/File:%D0%9A%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81_%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_%D0%A1%D0%BE%D0%B1%D0%BE%D1%80%D0%B0_%D0%B2_%D0%9A%D0%B5%D0%BC%D0%B8_%D1%81%D0%B2%D0%B5%D1%80%D1%85%D1%83_(1)_tim.jpg",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      },
+      {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%B8%D0%B9_%D1%81%D0%BE%D0%B1%D0%BE%D1%80_%D0%B2_%D0%9A%D0%B5%D0%BC%D0%B8_04.jpg/960px-%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%B8%D0%B9_%D1%81%D0%BE%D0%B1%D0%BE%D1%80_%D0%B2_%D0%9A%D0%B5%D0%BC%D0%B8_04.jpg",
+        "caption": "Успенский собор до реставрации 2016 года. 29 августа 2013 года.",
+        "alt": "Общий вид деревянного Успенского собора в Кеми в 2013 году",
+        "credit": "Insider / Wikimedia Commons, 29.08.2013",
+        "source": "https://commons.wikimedia.org/wiki/File:%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%B8%D0%B9_%D1%81%D0%BE%D0%B1%D0%BE%D1%80_%D0%B2_%D0%9A%D0%B5%D0%BC%D0%B8_04.jpg",
+        "license": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+      },
+      {
+        "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/%D0%97%D0%B0%D0%B2%D0%B5%D1%80%D1%88%D0%B5%D0%BD%D0%B8%D0%B5_%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_%D0%A1%D0%BE%D0%B1%D0%BE%D1%80%D0%B0_%D0%B2_%D0%9A%D0%B5%D0%BC%D0%B8.jpg/960px-%D0%97%D0%B0%D0%B2%D0%B5%D1%80%D1%88%D0%B5%D0%BD%D0%B8%D0%B5_%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_%D0%A1%D0%BE%D0%B1%D0%BE%D1%80%D0%B0_%D0%B2_%D0%9A%D0%B5%D0%BC%D0%B8.jpg",
+        "caption": "Шатёр и главка Успенского собора крупным планом. 12 октября 2020 года.",
+        "alt": "Деревянное покрытие шатра и главки Успенского собора в 2020 году",
+        "credit": "Красный / Wikimedia Commons, 12.10.2020",
+        "source": "https://commons.wikimedia.org/wiki/File:%D0%97%D0%B0%D0%B2%D0%B5%D1%80%D1%88%D0%B5%D0%BD%D0%B8%D0%B5_%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_%D0%A1%D0%BE%D0%B1%D0%BE%D1%80%D0%B0_%D0%B2_%D0%9A%D0%B5%D0%BC%D0%B8.jpg",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+      }
+    ],
+    "links": [
+      {
+        "label": "Архив: А. В. Ополовников. Реставрация сруба Успенского собора",
+        "url": "https://site.kizhi.karelia.ru/collection/uspenskij-sobor-g-kem/3459",
+        "note": "Музей «Кижи», первая половина 1950-х годов, КП-7012/14. Карточка архивного материала; это не современная фотография."
+      },
+      {
+        "label": "Музей «Кижи»: коллекция материалов об Успенском соборе в Кеми",
+        "url": "https://site.kizhi.karelia.ru/collection/uspenskij-sobor-g-kem/",
+        "note": "Материалы обследований, чертежи и документы для дальнейшего изучения."
+      },
+      {
+        "label": "Церковные описи: исследование датировки и внутреннего убранства",
+        "url": "https://site.kizhi.karelia.ru/library/ryabininskie-chteniya---2023-materialyi-ix-konferentsii-po-izucheniyu-i-aktualizatsii-t/2256.html",
+        "note": "И. А. Антропова, 2023 год."
+      },
+      {
+        "label": "Рассказ участника реставрации о срубе и четырёх иконостасах",
+        "url": "https://site.kizhi.karelia.ru/library/ryabininskie-chteniya---2023-materialyi-ix-konferentsii-po-izucheniyu-i-aktualizatsii-t/2261.html",
+        "note": "А. Г. Курочкин, 2023 год."
+      },
+      {
+        "label": "Научная история сохранения и реставрации икон собора",
+        "url": "https://site.kizhi.karelia.ru/library/ryabininskie-chteniya---2023-materialyi-ix-konferentsii-po-izucheniyu-i-aktualizatsii-t/2267.html",
+        "note": "М. Ф. Смирнова, 2023 год."
+      },
+      {
+        "label": "Wikimedia Commons: фотографии Успенского собора в Кеми",
+        "url": "https://commons.wikimedia.org/wiki/Category:Dormition_Cathedral,_Kem",
+        "note": "Дополнительные ракурсы; авторство и условия использования указаны на странице каждого файла."
+      }
+    ],
+    "next": "Дополнить современными фотографиями фасадов и интерьера с разрешения правообладателей. Для архивных изображений музея уточнять условия воспроизведения; ссылки на каталожные карточки сохранены."
   }
 };
+

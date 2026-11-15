@@ -51,7 +51,8 @@ window.KEM_ROUTE = {
     { number: 38, id: "city-park", title: "Городской парк и тропа здоровья", chapter: "river", status: "research" },
     { number: 39, id: "stadium", title: "Городской стадион", chapter: "river", status: "research" },
     { number: 40, id: "mass-grave", title: "Братская могила на Береговой и старое кладбище", chapter: "river", status: "research" },
-    { number: 41, id: "golodnukha", title: "Улица Мосорина и гора «Голоднуха»", chapter: "river", status: "research" }
+    { number: 41, id: "golodnukha", title: "Улица Мосорина и гора «Голоднуха»", chapter: "river", status: "research" },
+    { number: 42, id: "assumption-cathedral", title: "Успенский собор", chapter: "river", status: "ready" }
   ],
   points: [
     {
@@ -320,6 +321,20 @@ window.KEM_ROUTE = {
         { title: "Соборы.ру: Благовещенский собор в Кеми", url: "https://sobory.ru/article/?object=04304" },
         { title: "Монастырский вестник: Кемский мужской монастырь", url: "https://monasterium.ru/monastyri/monastery/kemskiy-muzhskoy-monastyr-vo-imya-novomuchenikov-i-ispovednikov-rossiyskikh/" }
       ]
+    },
+    {
+      "id": "assumption-cathedral",
+      "number": 42,
+      "chapter": "river",
+      "title": "Успенский собор",
+      "shortTitle": "Успенский собор",
+      "coordinates": null,
+      "coordinateStatus": "needs-check",
+      "coordinateNote": "Карточка подготовлена без координаты. Место на карте и безопасную площадку остановки редактор укажет самостоятельно.",
+      "duration": "8–10 минут",
+      "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/%D0%9A%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81_%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_%D0%A1%D0%BE%D0%B1%D0%BE%D1%80%D0%B0_%D0%B2_%D0%9A%D0%B5%D0%BC%D0%B8_%D1%81%D0%B2%D0%B5%D1%80%D1%85%D1%83_(1)_tim.jpg/960px-%D0%9A%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81_%D0%A3%D1%81%D0%BF%D0%B5%D0%BD%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_%D0%A1%D0%BE%D0%B1%D0%BE%D1%80%D0%B0_%D0%B2_%D0%9A%D0%B5%D0%BC%D0%B8_%D1%81%D0%B2%D0%B5%D1%80%D1%85%D1%83_(1)_tim.jpg",
+      "imageAlt": "Успенский собор и окружающая застройка Лепострова, вид сверху в 2020 году"
     }
   ]
 };
+
