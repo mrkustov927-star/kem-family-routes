@@ -352,8 +352,10 @@
       <p class="muted">Изменения сохранятся в общей базе и появятся у других участников. Источники и непроверенные сведения отмечайте прямо в тексте.</p>
       <input id="sharedPointId" name="id" type="hidden">
       <input id="sharedPointOrder" name="routeOrder" type="hidden">
+      <input id="sharedPointRouteId" name="routeId" type="hidden">
+      <input id="sharedPointOriginalNumber" name="originalRouteNumber" type="hidden">
       <div class="coordinate-fields">
-        <label>Номер в выбранном маршруте<input id="sharedPointRouteNumber" readonly></label>
+        <label>Номер в выбранном маршруте<input id="sharedPointRouteNumber" name="routeNumber" type="number" min="1" step="1" required><small>При изменении номера точка переместится, остальные перенумеруются.</small></label>
         <label>Глава<select id="sharedPointChapter" name="chapter" required></select></label>
       </div>
       <label>Полное название<input id="sharedPointTitle" name="title" required maxlength="180"></label>
@@ -428,8 +430,8 @@
   <script src="./routes.js?v=20261115-cards-1"></script>
   <script src="./intervention-cards.js?v=20261115-cards-1"></script>
   <script src="./supabase-config.js?v=20260718-2"></script>
-  <script src="./community.js?v=20261115-routes-1"></script>
-  <script src="./app.js?v=20261115-point-presentation-1"></script>
+  <script src="./community.js?v=20261115-edit-order-1"></script>
+  <script src="./app.js?v=20261115-edit-order-1"></script>
 </body>
 </html>
 

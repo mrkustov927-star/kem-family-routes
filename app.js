@@ -255,11 +255,54 @@
       || { id: state.activeRouteId, title: "Сохранённый маршрут", description: "Данные маршрута пока недоступны. Выберите другой вариант или дождитесь загрузки общей карты.", pointIds: [] };
   }
 
-  function selectedRoutePoints() {
-    const definition = selectedRoute();
+  function parseRouteRank(value, fallback) {
+    const match = /^(-?\d+)\/(\d+)$/.exec(String(value || ""));
+    if (match && match[1].length < 4096 && match[2].length < 4096 && BigInt(match[2]) > 0n) {
+      return { n: BigInt(match[1]), d: BigInt(match[2]) };
+    }
+    return { n: BigInt(fallback), d: 1n };
+  }
+
+  function compareRouteRanks(a, b) {
+    const difference = a.n * b.d - b.n * a.d;
+    return difference < 0n ? -1 : difference > 0n ? 1 : 0;
+  }
+
+  function orderedRouteEntries(routeId) {
+    const definition = availableRoutes().find(item => item.id === routeId);
+    if (!definition) return [];
     const byId = new Map(guidedPoints.map(point => [point.id, point]));
     const ids = Array.isArray(definition.pointIds) ? definition.pointIds : guidedPoints.map(point => point.id);
-    return [...new Set(ids)].map(id => byId.get(id)).filter(Boolean);
+    const records = new Map(state.sharedPointRecords.map(record => [record.id, record]));
+    return [...new Set(ids)].map((id, index) => ({
+      point: byId.get(id), index,
+      rank: parseRouteRank(records.get(id)?.content?.routeRanks?.[routeId], index + 1)
+    })).filter(entry => entry.point).sort((a, b) => compareRouteRanks(a.rank, b.rank) || a.index - b.index);
+  }
+
+  function selectedRoutePoints() {
+    return orderedRouteEntries(state.activeRouteId).map(entry => entry.point);
+  }
+
+  function prepareRouteMove(pointId, position, routeId) {
+    const entries = orderedRouteEntries(routeId);
+    const current = entries.findIndex(entry => entry.point.id === pointId);
+    if (current < 0) throw new Error("Точка не входит в выбранный маршрут");
+    if (!Number.isInteger(position) || position < 1 || position > entries.length) {
+      throw new Error(`Укажите номер от 1 до ${entries.length}`);
+    }
+    if (current === position - 1) return null;
+    entries.splice(current, 1);
+    const before = entries[position - 2]?.rank;
+    const after = entries[position - 1]?.rank;
+    let rank;
+    if (!before) rank = { n: after.n - after.d, d: after.d };
+    else if (!after) rank = { n: before.n + before.d, d: before.d };
+    else {
+      if (compareRouteRanks(before, after) >= 0) throw new Error("Порядок точек изменился. Обновите страницу и повторите перемещение");
+      rank = { n: before.n + after.n, d: before.d + after.d };
+    }
+    return { routeId, rank: `${rank.n}/${rank.d}` };
   }
 
   function pointIsOnSelectedRoute(pointId) {
@@ -311,8 +354,8 @@
       els.routeOverviewContent.innerHTML = "";
       return;
     }
-    const pointsById = new Map(selectedRoutePoints().map(point => [point.id, point]));
-    const stops = (overview.stops || []).filter(stop => pointsById.has(stop.id)).map(stop => `<li><button class="route-overview__point" type="button" data-point-id="${escapeHtml(stop.id)}">${escapeHtml(pointLabel(pointsById.get(stop.id)))}</button><p>${escapeHtml(stop.text)}</p>${routeStopSections(stop)}${stop.check ? `<details class="route-stop-check"><summary>Что ещё уточнить</summary><p>${escapeHtml(stop.check)}</p></details>` : ""}</li>`).join("");
+    const stopsById = new Map((overview.stops || []).map(stop => [stop.id, stop]));
+    const stops = selectedRoutePoints().map(point => ({ point, stop: stopsById.get(point.id) })).filter(item => item.stop).map(({ point, stop }) => `<li><button class="route-overview__point" type="button" data-point-id="${escapeHtml(stop.id)}">${escapeHtml(pointLabel(point))}</button><p>${escapeHtml(stop.text)}</p>${routeStopSections(stop)}${stop.check ? `<details class="route-stop-check"><summary>Что ещё уточнить</summary><p>${escapeHtml(stop.check)}</p></details>` : ""}</li>`).join("");
     const additions = (overview.additions || []).map(item => {
       const url = safeExternalUrl(item.url);
       const title = item.pointId
@@ -2241,7 +2284,14 @@
     els.sharedPointForm.reset();
     document.querySelector("#sharedPointId").value = point.id;
     document.querySelector("#sharedPointOrder").value = point.route_order ?? "";
-    document.querySelector("#sharedPointRouteNumber").value = pointDisplayNumber(point);
+    const routeNumber = pointDisplayNumber(point);
+    document.querySelector("#sharedPointRouteId").value = state.activeRouteId;
+    document.querySelector("#sharedPointOriginalNumber").value = routeNumber;
+    const orderInput = document.querySelector("#sharedPointRouteNumber");
+    orderInput.disabled = routeNumber === "—";
+    orderInput.required = routeNumber !== "—";
+    orderInput.max = selectedRoutePoints().length;
+    orderInput.value = routeNumber === "—" ? "" : routeNumber;
     document.querySelector("#sharedPointChapter").value = point.chapter || "railway";
     document.querySelector("#sharedPointTitle").value = point.title || "";
     document.querySelector("#sharedPointShortTitle").value = point.short_title || "";
@@ -2859,6 +2909,19 @@
       return;
     }
     const content = existing?.content || {};
+    let routeMove = null;
+    const originalNumber = String(formData.get("originalRouteNumber") || "");
+    if (originalNumber !== "—") {
+      try {
+        const requestedNumber = Number(formData.get("routeNumber"));
+        if (requestedNumber !== Number(originalNumber)) {
+          routeMove = prepareRouteMove(String(formData.get("id")), requestedNumber, String(formData.get("routeId")));
+        }
+      } catch (error) {
+        showToast(error.message);
+        return;
+      }
+    }
     const record = {
       id: String(formData.get("id")),
       route_order: Number(formData.get("routeOrder")) || null,
@@ -2888,14 +2951,14 @@
     els.sharedPointSaveButton.disabled = true;
     els.sharedPointSaveButton.textContent = "Сохраняем…";
     try {
-      await community.savePoint(record);
+      await community.savePoint(record, routeMove);
       if (isLocalDraft) {
         state.edits = state.edits.filter(edit => !(edit.field === "new-point" && edit.pointId === record.id));
         localStorage.setItem(STORAGE_EDITS, JSON.stringify(state.edits));
       }
       await refreshCommunityWorkspace({ quiet: true });
       els.sharedPointDialog.close();
-      showToast(isLocalDraft ? "Черновик перенесён в общую карту и сохранён" : "Точка сохранена в общей карте");
+      showToast(routeMove ? "Точка и новый порядок маршрута сохранены для всех" : isLocalDraft ? "Черновик перенесён в общую карту и сохранён" : "Точка сохранена в общей карте");
     } catch (error) {
       showToast(error.message || "Не удалось сохранить точку");
     } finally {

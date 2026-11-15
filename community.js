@@ -202,8 +202,22 @@
     return true;
   }
 
-  async function savePoint(record) {
+  function mergeRouteRanks(content, latestContent, routeMove) {
+    const merged = { ...(content || {}) };
+    const ranks = latestContent?.routeRanks;
+    if (ranks && typeof ranks === "object" && !Array.isArray(ranks)) merged.routeRanks = { ...ranks };
+    else delete merged.routeRanks;
+    if (routeMove) merged.routeRanks = { ...(merged.routeRanks || {}), [routeMove.routeId]: routeMove.rank };
+    return merged;
+  }
+
+  async function savePoint(record, routeMove = null) {
     if (!client || !user) throw new Error("Для общей правки нужно войти");
+    if (routeMove && (typeof routeMove.routeId !== "string" || !routeMove.routeId.trim()
+      || typeof routeMove.rank !== "string" || routeMove.rank.length > 8192
+      || !/^-?\d+\/[1-9]\d*$/.test(routeMove.rank))) {
+      throw new Error("Не удалось определить новый номер точки");
+    }
     const { data: existingPoint, error: lookupError } = await client
       .from("points")
       .select("id, content, updated_at")
@@ -220,6 +234,7 @@
         updated_at: _updatedAt,
         ...changes
       } = record;
+      if (changes.content || routeMove) changes.content = mergeRouteRanks(changes.content, existingPoint.content, routeMove);
       // The ordinary point editor does not edit this section. Keep the latest
       // saved value even if another participant opened the point form earlier.
       if (changes.content && Object.prototype.hasOwnProperty.call(existingPoint.content || {}, "visualEvidence")) {
@@ -235,7 +250,7 @@
     } else {
       result = await client
         .from("points")
-        .insert({ ...record, created_by: user.id, updated_by: user.id })
+        .insert({ ...record, content: mergeRouteRanks(record.content, record.content, routeMove), created_by: user.id, updated_by: user.id })
         .select()
         .single();
     }

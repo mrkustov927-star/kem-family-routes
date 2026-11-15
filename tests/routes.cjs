@@ -31,7 +31,7 @@ for (const name of ['points.js','research-cards.js','visual-evidence.js','route-
 vm.runInContext(read('intervention-cards.js'), context);
 const boundary = source.indexOf('  window.openKemPoint = openPoint;');
 assert(boundary > 0);
-vm.runInContext(source.slice(0,boundary) + '\nwindow.testRoutes={state,els,selectRoute,selectedRoutePoints,selectedRouteGeometry,activeRouteLine,applySharedWorkspace,updateProgress,saveProgress,renderGuide,openPoint,saveSharedRoute,selectedRouteIssues,pointDisplayNumber,renderPlan,renderPlanFilters,renderPoints,renderYandexObjects,redrawLeafletRoute,renderPhotos,photoPointDetails,pointSeedRecords,pointRecordForEditor,pointCover,pointCoverMarkup,isPlaceholderCover,pointLabel,allPhotos,openSharedPointEditor};\n})();', context);
+vm.runInContext(source.slice(0,boundary) + '\nwindow.testRoutes={state,els,selectRoute,selectedRoutePoints,selectedRouteGeometry,activeRouteLine,applySharedWorkspace,updateProgress,saveProgress,renderGuide,openPoint,saveSharedRoute,selectedRouteIssues,pointDisplayNumber,renderPlan,renderPlanFilters,renderPoints,renderYandexObjects,redrawLeafletRoute,renderPhotos,photoPointDetails,pointSeedRecords,pointRecordForEditor,pointCover,pointCoverMarkup,isPlaceholderCover,pointLabel,allPhotos,openSharedPointEditor,prepareRouteMove};\n})();', context);
 const api = context.window.testRoutes;
 api.state.community.authenticated = true;
 api.state.routeCoordinates = api.selectedRouteGeometry();
@@ -269,7 +269,8 @@ api.state.routeDraft = [[64.945,34.61],[64.946,34.62]];
   api.openSharedPointEditor(renamed.id);
   assert.equal(node('#sharedPointRouteNumber').value,4);
   assert.equal(node('#sharedPointOrder').value,2,'Displayed route number never overwrites catalogue order');
-  assert(/id="sharedPointRouteNumber" readonly/.test(html));
+  assert(/id="sharedPointRouteNumber" name="routeNumber" type="number"/.test(html));
+  assert(!/id="sharedPointRouteNumber"[^>]*readonly/.test(html));
   assert(/id="sharedPointOrder" name="routeOrder" type="hidden"/.test(html));
   const legacy=api.allPhotos().find(photo=>photo.id==='legacy-krestovsky');
   assert.equal(legacy.pointId,'krestovsky-prospect');
@@ -299,6 +300,56 @@ api.state.routeDraft = [[64.945,34.61],[64.946,34.62]];
   for(const [id,photoId] of [['revolution-square','collection-revolution-square-57'],['humpback-bridge','collection-humpback-bridge-21'],['pomorye-museum','collection-pomorye-museum-51']]){
     assert.equal(api.pointCover(api.selectedRoutePoints().find(point=>point.id===id)).photoId,photoId);
   }
+  // All routes can move any of their cards. Saved ranks are scoped to a route.
+  const records=JSON.parse(JSON.stringify(api.state.sharedPointRecords));
+  const orderedIds=()=>Array.from(api.selectedRoutePoints(),point=>point.id);
+  const baseline=new Map();
+  for(const routeId of ['main','ckis-assumption','annunciation-assumption']){
+    api.selectRoute(routeId);baseline.set(routeId,orderedIds());
+    for(const point of api.selectedRoutePoints()){
+      api.openSharedPointEditor(point.id);
+      assert.equal(node('#sharedPointRouteNumber').disabled,false,'Editable number: '+point.id);
+      assert.equal(node('#sharedPointRouteNumber').max,orderedIds().length);
+    }
+  }
+  function persistMove(pointId,number,routeId){
+    const change=api.prepareRouteMove(pointId,number,routeId);
+    if(change){
+      let record=records.find(record=>record.id===pointId);
+      if(!record){record=JSON.parse(JSON.stringify(seeds.find(seed=>seed.id===pointId)||api.pointRecordForEditor(pointId)));records.push(record);}
+      record.content.routeRanks={...(record.content.routeRanks||{}),[routeId]:change.rank};
+      api.state.sharedPointRecords=JSON.parse(JSON.stringify(records));
+    }
+  }
+  api.selectRoute('annunciation-assumption');
+  persistMove('krestovsky-prospect',2,'annunciation-assumption');
+  assert.deepEqual(orderedIds().slice(0,5),['annunciation','krestovsky-prospect','intervention-garrison','intervention-july-1918','intervention-woods-regiment']);
+  const reloaded=JSON.parse(JSON.stringify(records));
+  api.applySharedWorkspace({points:reloaded,photos:[],waypoints:[],routes:[]});
+  assert.equal(orderedIds()[1],'krestovsky-prospect','Survives workspace reload');
+  api.openSharedPointEditor('krestovsky-prospect');assert.equal(node('#sharedPointRouteNumber').value,2);
+  const overviewIds=[...api.els.routeOverviewContent.innerHTML.matchAll(/data-point-id="([^"]+)"/g)].map(match=>match[1]);
+  assert.deepEqual(overviewIds,orderedIds(),'Overview follows the saved order');
+  api.selectRoute('main');assert.deepEqual(orderedIds(),baseline.get('main'),'The other route retains its own order');
+  api.selectRoute('ckis-assumption');assert.deepEqual(orderedIds(),baseline.get('ckis-assumption'));
+  for(const routeId of ['main','ckis-assumption','annunciation-assumption']){
+    api.selectRoute(routeId);
+    const first=orderedIds()[0],last=orderedIds().at(-1);
+    persistMove(last,1,routeId);assert.equal(orderedIds()[0],last);
+    persistMove(last,orderedIds().length,routeId);assert.equal(orderedIds().at(-1),last);
+    persistMove(first,2,routeId);assert.equal(orderedIds()[1],first);
+    persistMove(first,1,routeId);assert.equal(orderedIds()[0],first);
+    assert.equal(new Set(orderedIds()).size,orderedIds().length);
+  }
+  api.selectRoute('annunciation-assumption');
+  for(const value of [0,-1,22,1.5,NaN])assert.throws(()=>api.prepareRouteMove('krestovsky-prospect',value,'annunciation-assumption'),/Укажите номер/);
+  for(let index=0;index<200;index++){
+    const pointId=orderedIds()[2];persistMove(pointId,2,'annunciation-assumption');
+    assert.equal(orderedIds()[1],pointId,'Repeated insertions retain precision');
+  }
+  api.applySharedWorkspace({points:JSON.parse(JSON.stringify(records)),photos:[],waypoints:[],routes:[]});
+  assert.equal(new Set(orderedIds()).size,21);
+  console.log(JSON.stringify({editableNumbers:'all points in all routes',move4to2:'passed',routeOrderReload:'passed',otherRoutesUnaffected:'passed',overviewOrder:'passed',firstAndLastMoves:'passed',repeatedInsertions:200}));
   console.log(JSON.stringify({coverAudit:{checked:audit.length,withImage:audit.filter(point=>point.cover).length,withoutImage:audit.filter(point=>!point.cover).map(point=>point.id)},editorRouteNumber:'passed',clearedShortTitle:'passed',legacyStreetPhoto:'passed',coverCredits:'passed'}));
   console.log(JSON.stringify({syntax:'passed',builtInRoutes:3,mainPoints:54,shortRoutePoints:9,cathedralRoutePoints:21,interventionCards:8,unmappedCardContentAndSeeds:'passed',routeOverview:'passed',allViewNumbering:'passed',bothMapProviders:'passed',unmappedSharedPoint:'passed',progressIsolation:'passed',lineIsolation:'passed',draftAndSaveGuards:'passed',emptyRoute:'passed',outOfRouteCards:'passed',quotaFailure:'passed'}));
 })().catch(error=>{console.error(error);process.exitCode=1;});
