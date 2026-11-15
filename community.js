@@ -170,11 +170,12 @@
   }
 
   async function fetchWorkspace() {
-    if (!client) return { points: [], photos: [], waypoints: [] };
-    const [pointsResult, photosResult, waypointResult] = await Promise.all([
+    if (!client) return { points: [], photos: [], waypoints: [], routes: [] };
+    const [pointsResult, photosResult, waypointResult, routesResult] = await Promise.all([
       client.from("points").select("*").order("route_order", { ascending: true, nullsFirst: false }),
       client.from("photos").select("*").neq("status", "archived").order("created_at", { ascending: false }),
-      client.from("route_waypoints").select("*").eq("route_id", "main").order("position")
+      client.from("route_waypoints").select("*").order("position"),
+      client.from("routes").select("id, title, travel_mode, status").neq("status", "archived").order("title")
     ]);
     const error = pointsResult.error || photosResult.error || waypointResult.error;
     if (error) throw normalizeError(error, "Не удалось загрузить общую карту");
@@ -183,7 +184,8 @@
       const publicUrl = client.storage.from("point-photos").getPublicUrl(photo.storage_path).data.publicUrl;
       return { ...photo, publicUrl };
     });
-    return { points: pointsResult.data || [], photos, waypoints: waypointResult.data || [] };
+    if (routesResult.error) console.warn("Route titles could not be loaded", routesResult.error);
+    return { points: pointsResult.data || [], photos, waypoints: waypointResult.data || [], routes: routesResult.error ? [] : routesResult.data || [] };
   }
 
   async function seedPoints(records) {
@@ -400,3 +402,4 @@
     subscribeToWorkspace
   };
 })();
+

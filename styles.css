@@ -406,3 +406,15 @@ footer p { margin: 7px 0 0; color: #9eb3c0; }
   .visual-editor__heading .button { width: 100%; }
 }
 
+
+.route-picker { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(0, 1.2fr); gap: 24px; align-items: center; margin-bottom: 20px; padding: 22px 24px; border: 1px solid var(--line); border-radius: 18px; background: #fff; }
+.route-picker__field { display: grid; gap: 9px; min-width: 0; color: var(--navy); font-size: 13px; font-weight: 800; }
+.route-picker__field select { width: 100%; min-height: 48px; padding: 11px 36px 11px 13px; border: 1px solid #bdcdd7; border-radius: 11px; background: #f8fafb; color: var(--navy); font: inherit; font-size: 16px; }
+.route-picker__field select:focus-visible { outline: 3px solid #94c5df; outline-offset: 2px; }
+.route-picker__details { min-width: 0; }
+.route-picker__details strong { color: var(--navy); font-size: 14px; }
+.route-picker__details p { margin: 5px 0 0; color: #465b6a; font-size: 14px; line-height: 1.5; }
+.route-picker__details .route-picker__note { color: #647782; font-size: 12px; }
+@media (max-width: 700px) {
+  .route-picker { grid-template-columns: 1fr; gap: 15px; padding: 18px; }
+}

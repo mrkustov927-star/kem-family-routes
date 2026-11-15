@@ -4,6 +4,7 @@
   const route = window.KEM_ROUTE;
   const photos = window.KEM_PHOTOS || [];
   const routeGeometry = window.KEM_ROUTE_GEOMETRY || null;
+  const routeDefinitions = window.KEM_ROUTES || [{ id: "main", title: "Большой маршрут по Кеми", description: "", pointIds: null }];
   const community = window.KemCommunity || null;
   const DEFAULT_POINT_IMAGE = "./assets/default-point-cover.jpg";
 
@@ -80,7 +81,11 @@
     filter: "all",
     planFilter: "all",
     currentPointIndex: 0,
-    completed: new Set(readStorage(STORAGE_PROGRESS, [])),
+    activeRouteId: readSelectedRouteId(),
+    sharedRouteRecords: [],
+    allSharedWaypoints: [],
+    routeSaving: false,
+    completed: new Set(readStorage(progressStorageKey(readSelectedRouteId()), [])),
     edits: readStorage(STORAGE_EDITS, []),
     routeIssues: readStorage(STORAGE_ROUTE_ISSUES, []),
     photoDrafts: readStorage(STORAGE_PHOTO_DRAFTS, []),
@@ -118,6 +123,10 @@
   };
 
   const els = {
+    routeSelect: document.querySelector("#routeSelect"),
+    routeDescription: document.querySelector("#routeDescription"),
+    routePointCount: document.querySelector("#routePointCount"),
+    routeLineNote: document.querySelector("#routeLineNote"),
     map: document.querySelector("#map"),
     yandexMap: document.querySelector("#yandexMap"),
     mapPanel: document.querySelector(".map-panel"),
@@ -198,15 +207,113 @@
   }
 
   function saveProgress() {
-    localStorage.setItem(STORAGE_PROGRESS, JSON.stringify([...state.completed]));
+    localStorage.setItem(progressStorageKey(state.activeRouteId), JSON.stringify([...state.completed]));
     updateProgress();
   }
 
   function updateProgress() {
-    const total = guidedPoints.length;
-    const done = state.completed.size;
+    const points = selectedRoutePoints();
+    const total = points.length;
+    const done = points.filter(point => state.completed.has(point.id)).length;
     els.progressText.textContent = `${done} из ${total} точек`;
-    els.progressBar.style.width = `${(done / total) * 100}%`;
+    els.progressBar.style.width = `${total ? (done / total) * 100 : 0}%`;
+  }
+
+  function readSelectedRouteId() {
+    try { return localStorage.getItem("kem-selected-route-v1") || "main"; } catch (_) { return "main"; }
+  }
+
+  function progressStorageKey(routeId) {
+    return routeId === "main" ? STORAGE_PROGRESS : STORAGE_PROGRESS + ":" + routeId;
+  }
+
+  function availableRoutes() {
+    const definitions = new Map(routeDefinitions.map(item => [item.id, { ...item }]));
+    state.sharedRouteRecords.forEach(record => {
+      if (record.status === "archived") return;
+      const existing = definitions.get(record.id);
+      const stopIds = [...new Set(state.allSharedWaypoints.filter(item => item.route_id === record.id && item.point_id && item.kind === "stop").sort((a, b) => a.position - b.position).map(item => item.point_id))];
+      definitions.set(record.id, {
+        ...existing, id: record.id, title: record.title || existing?.title || "Маршрут",
+        description: existing?.description || "Маршрут из общей карты.",
+        pointIds: existing ? existing.pointIds : stopIds
+      });
+    });
+    return [...definitions.values()];
+  }
+
+  function selectedRoute() {
+    return availableRoutes().find(item => item.id === state.activeRouteId)
+      || { id: state.activeRouteId, title: "Сохранённый маршрут", description: "Данные маршрута пока недоступны. Выберите другой вариант или дождитесь загрузки общей карты.", pointIds: [] };
+  }
+
+  function selectedRoutePoints() {
+    const definition = selectedRoute();
+    if (!Array.isArray(definition.pointIds)) return [...guidedPoints];
+    const byId = new Map(guidedPoints.map(point => [point.id, point]));
+    return definition.pointIds.map(id => byId.get(id)).filter(Boolean);
+  }
+
+  function pointIsOnSelectedRoute(pointId) {
+    const definition = selectedRoute();
+    return !Array.isArray(definition.pointIds) || definition.pointIds.includes(pointId);
+  }
+
+  function selectedRouteIssues() {
+    return state.routeIssues.filter(issue => (issue.routeId || "main") === state.activeRouteId);
+  }
+
+  function selectedRouteGeometry() {
+    if (state.activeRouteId !== "main") {
+      const local = validRouteCoordinates(readStorage("kem-route-line-v1:" + state.activeRouteId, []));
+      if (local.length >= 2) return local;
+    }
+    const saved = validRouteCoordinates(state.allSharedWaypoints.filter(item => item.route_id === state.activeRouteId).sort((a, b) => a.position - b.position).map(item => [item.latitude, item.longitude]));
+    if (saved.length >= 2) return saved;
+    return state.activeRouteId === "main" ? validRouteCoordinates(routeGeometry?.coordinates || []) : [];
+  }
+
+  function renderRouteChooser() {
+    const choices = availableRoutes();
+    const current = selectedRoute();
+    if (!choices.some(item => item.id === current.id)) choices.push(current);
+    els.routeSelect.innerHTML = choices.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.title)}</option>`).join("");
+    els.routeSelect.value = state.activeRouteId;
+    els.routeSelect.disabled = state.routeSaving;
+    els.routeDescription.textContent = current.description;
+    const points = selectedRoutePoints();
+    const unmapped = points.filter(point => !Array.isArray(point.coordinates)).length;
+    els.routePointCount.textContent = `${points.length} ${russianPlural(points.length, "точка", "точки", "точек")}${unmapped ? ` · без координат: ${unmapped}` : ""}`;
+    const isMain = state.activeRouteId === "main";
+    els.routeLineNote.textContent = isMain
+      ? "Основной маршрут использует общую сохранённую линию."
+      : (state.routeCoordinates.length >= 2 ? "Линия выбранного маршрута показана на карте. Редакция линии сохраняется на этом устройстве." : "Линия ещё не проложена. Можно нарисовать её по улицам и сохранить на этом устройстве.");
+    document.querySelector("#routeEditorTitle").textContent = current.title;
+    document.querySelector("#routeSaveButton").textContent = state.routeSaving ? "Сохраняем…" : isMain ? "Сохранить для всех" : "Сохранить на устройстве";
+    document.querySelector("#startTourButton").disabled = points.length === 0;
+  }
+
+  function selectRoute(routeId) {
+    if (state.routeSaving || state.routeEditMode) {
+      els.routeSelect.value = state.activeRouteId;
+      showToast("Сначала сохраните или закройте редактор линии маршрута");
+      return false;
+    }
+    if (!availableRoutes().some(item => item.id === routeId)) return false;
+    state.activeRouteId = routeId;
+    state.currentPointIndex = 0;
+    state.filter = "all";
+    state.completed = new Set(readStorage(progressStorageKey(routeId), []));
+    state.routeCoordinates = selectedRouteGeometry();
+    try { localStorage.setItem("kem-selected-route-v1", routeId); } catch (_) {}
+    if (state.coordinateMode) setCoordinateMode(false);
+    if (state.routeReviewMode) setRouteReviewMode(false);
+    refreshWorkspaceViews();
+    renderRouteIssues();
+    renderCoordinateDrafts();
+    if (!els.guidePanel.hidden) renderGuide();
+    fitWholeRoute();
+    return true;
   }
 
   function showToast(message) {
@@ -271,6 +378,10 @@
   }
 
   function pointDisplayNumber(point) {
+    if (state.activeRouteId !== "main") {
+      const index = selectedRoutePoints().findIndex(item => item.id === point.id);
+      if (index >= 0) return index + 1;
+    }
     const shared = state.sharedPointRecords.find(record => record.id === point.id);
     return shared?.route_order ?? point.number ?? "+";
   }
@@ -446,6 +557,7 @@
   }
 
   function applySharedWorkspace(workspace) {
+    const currentPointId = selectedRoutePoints()[state.currentPointIndex]?.id;
     const workspacePoints = workspace.points || [];
     const archivedPointIds = new Set(workspacePoints.filter(point => point.status === "archived").map(point => point.id));
     state.sharedPointRecords = workspacePoints.filter(point => point.status !== "archived");
@@ -497,10 +609,19 @@
     route.plannedPoints.sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
     guidedPoints.sort((a, b) => Number(a.number || 9999) - Number(b.number || 9999));
 
-    state.sharedWaypoints = (workspace.waypoints || []).map(waypoint => [waypoint.latitude, waypoint.longitude]);
-    if (state.sharedWaypoints.length >= 2) state.routeCoordinates = state.sharedWaypoints.map(coordinate => [...coordinate]);
+    state.sharedRouteRecords = workspace.routes || [];
+    state.allSharedWaypoints = (workspace.waypoints || []).map(item => ({ ...item, route_id: item.route_id || "main" }));
+    state.sharedWaypoints = state.allSharedWaypoints.filter(item => item.route_id === "main").sort((a, b) => a.position - b.position).map(item => [item.latitude, item.longitude]);
+    if (!availableRoutes().some(item => item.id === state.activeRouteId)) {
+      state.activeRouteId = "main";
+      state.completed = new Set(readStorage(STORAGE_PROGRESS, []));
+    }
+    state.routeCoordinates = selectedRouteGeometry();
+    state.currentPointIndex = Math.max(0, selectedRoutePoints().findIndex(point => point.id === currentPointId));
     updateRouteSummary();
     refreshWorkspaceViews();
+    renderRouteIssues();
+    if (!els.guidePanel.hidden) renderGuide();
   }
 
   function savePhotoDrafts() {
@@ -525,10 +646,8 @@
     if (state.routeEditMode) return validRouteCoordinates(state.routeDraft);
     const savedRoute = validRouteCoordinates(state.routeCoordinates);
     if (savedRoute.length >= 2) return savedRoute;
-    return guidedPoints
-      .filter(point => Array.isArray(point.coordinates))
-      .sort((a, b) => Number(pointDisplayNumber(a) || 9999) - Number(pointDisplayNumber(b) || 9999))
-      .map(point => point.coordinates);
+    if (state.activeRouteId !== "main") return [];
+    return selectedRoutePoints().filter(point => Array.isArray(point.coordinates)).map(point => point.coordinates);
   }
 
   function routeLengthMeters(coordinates) {
@@ -541,7 +660,7 @@
     const distance = routeLengthMeters(line);
     if (!distance) {
       els.routeDistance.textContent = "маршрут";
-      els.routeWalkingTime.textContent = "добавьте минимум 2 узла";
+      els.routeWalkingTime.textContent = "линия ещё не проложена";
       return;
     }
     const distanceKm = distance / 1000;
@@ -551,6 +670,7 @@
   }
 
   function refreshWorkspaceViews() {
+    renderRouteChooser();
     renderFilters();
     renderPoints();
     renderPlanFilters();
@@ -565,10 +685,7 @@
   }
 
   function initMap() {
-    const routeLine = routeGeometry?.coordinates?.length
-      ? routeGeometry.coordinates
-      : guidedPoints.map(point => point.coordinates).filter(coordinates => Array.isArray(coordinates));
-    state.routeCoordinates = routeLine;
+    state.routeCoordinates = selectedRouteGeometry();
 
     updateRouteSummary();
 
@@ -737,7 +854,7 @@
       L.polyline(routeLine, { color: "#ff0000", weight: 7, opacity: 1, lineJoin: "round", lineCap: "round", interactive: false }).addTo(state.routeLayer);
     }
 
-    guidedPoints.filter(point => Array.isArray(point.coordinates)).forEach(point => {
+    selectedRoutePoints().filter(point => Array.isArray(point.coordinates)).forEach(point => {
       const needsCheck = point.coordinateStatus === "needs-check";
       const pointNumber = pointDisplayNumber(point);
       const marker = L.marker(point.coordinates, {
@@ -755,7 +872,7 @@
     });
 
     state.sharedPointRecords.forEach(record => {
-      if (guidedPoints.some(point => point.id === record.id) || !Number.isFinite(record.latitude) || !Number.isFinite(record.longitude)) return;
+      if (!pointIsOnSelectedRoute(record.id) || guidedPoints.some(point => point.id === record.id) || !Number.isFinite(record.latitude) || !Number.isFinite(record.longitude)) return;
       const marker = L.marker([record.latitude, record.longitude], {
         icon: L.divIcon({
           className: "",
@@ -783,7 +900,7 @@
     state.photoLayer.clearLayers();
     allPhotos().forEach(photo => {
       const point = photoPointDetails(photo.pointId);
-      if (!point?.coordinates) return;
+      if (!point?.coordinates || !pointIsOnSelectedRoute(photo.pointId)) return;
       const marker = L.marker(point.coordinates, {
         icon: L.divIcon({
           className: "",
@@ -841,7 +958,7 @@
       }));
     }
 
-    guidedPoints.forEach(point => {
+    selectedRoutePoints().forEach(point => {
       if (!Array.isArray(point.coordinates)) return;
       const needsCheck = point.coordinateStatus === "needs-check";
       const pointNumber = pointDisplayNumber(point);
@@ -854,7 +971,7 @@
     });
 
     state.sharedPointRecords.forEach(record => {
-      if (guidedPoints.some(point => point.id === record.id) || !Number.isFinite(record.latitude) || !Number.isFinite(record.longitude)) return;
+      if (!pointIsOnSelectedRoute(record.id) || guidedPoints.some(point => point.id === record.id) || !Number.isFinite(record.latitude) || !Number.isFinite(record.longitude)) return;
       addYandexMarker(
         [record.latitude, record.longitude],
         sharedPointMarkerHtml(record),
@@ -876,7 +993,7 @@
     if (state.photosVisible) {
       allPhotos().forEach(photo => {
         const point = photoPointDetails(photo.pointId);
-        if (!point?.coordinates) return;
+        if (!point?.coordinates || !pointIsOnSelectedRoute(photo.pointId)) return;
         addYandexMarker(
           point.coordinates,
           `<div class="photo-map-marker${photo.isDraft ? " photo-map-marker--draft" : ""}" style="background-image:url('${photo.src}')"><span>${escapeHtml(photo.pointNumber)}</span></div>`,
@@ -887,7 +1004,7 @@
       });
     }
 
-    state.routeIssues.forEach(issue => {
+    selectedRouteIssues().forEach(issue => {
       if (!Array.isArray(issue.coordinates) || issue.coordinates.length !== 2) return;
       const typeLabel = ROUTE_ISSUE_TYPES[issue.type] || ROUTE_ISSUE_TYPES.other;
       addYandexMarker(
@@ -900,7 +1017,7 @@
       );
     });
 
-    state.edits.filter(edit => ["coordinate", "new-point"].includes(edit.field) && Array.isArray(edit.coordinates)).forEach(edit => {
+    state.edits.filter(edit => ["coordinate", "new-point"].includes(edit.field) && Array.isArray(edit.coordinates) && pointIsOnSelectedRoute(edit.pointId)).forEach(edit => {
       const isNewPoint = edit.field === "new-point";
       addYandexMarker(
         edit.coordinates,
@@ -924,7 +1041,8 @@
   }
 
   function fitYandexRoute() {
-    const line = activeRouteLine();
+    const drawn = activeRouteLine();
+    const line = drawn.length ? drawn : selectedRoutePoints().map(point => point.coordinates).filter(Boolean);
     if (!state.yandexReady || !state.yandexMap || !line.length) return;
     const longitudes = line.map(coordinates => coordinates[1]);
     const latitudes = line.map(coordinates => coordinates[0]);
@@ -981,7 +1099,7 @@
       return;
     }
     if (!state.map) return;
-    const routeLine = activeRouteLine().length ? activeRouteLine() : guidedPoints.map(point => point.coordinates).filter(Boolean);
+    const routeLine = activeRouteLine().length ? activeRouteLine() : selectedRoutePoints().map(point => point.coordinates).filter(Boolean);
     if (routeLine.length) state.map.fitBounds(L.latLngBounds(routeLine), { padding: [55, 55] });
   }
 
@@ -999,7 +1117,8 @@
   }
 
   function renderFilters() {
-    const items = [{ id: "all", title: "Все" }, ...route.chapters];
+    const chapters = new Set(selectedRoutePoints().map(point => point.chapter));
+    const items = [{ id: "all", title: "Все" }, ...route.chapters.filter(chapter => chapters.has(chapter.id))];
     els.chapterFilter.innerHTML = items.map(item => `<button class="filter-chip ${item.id === state.filter ? "is-active" : ""}" type="button" data-filter="${item.id}">${item.title}</button>`).join("");
   }
 
@@ -1261,8 +1380,10 @@
   function updateRouteEditor() {
     const count = state.routeDraft.length;
     els.routeEditorCount.textContent = `${count} ${count === 1 ? "узел" : count > 1 && count < 5 ? "узла" : "узлов"}`;
-    document.querySelector("#routeUndoButton").disabled = count === 0;
-    document.querySelector("#routeSaveButton").disabled = count < 2;
+    document.querySelector("#routeUndoButton").disabled = count === 0 || state.routeSaving;
+    document.querySelector("#routeSaveButton").disabled = count < 2 || state.routeSaving;
+    document.querySelector("#routeResetButton").disabled = state.routeSaving;
+    document.querySelector("#routeCancelButton").disabled = state.routeSaving;
     updateRouteSummary();
     redrawLeafletRoute();
     renderYandexObjects();
@@ -1273,8 +1394,8 @@
     if (enabled) {
       if (state.coordinateMode) setCoordinateMode(false);
       if (state.routeReviewMode) setRouteReviewMode(false);
-      state.routeDraft = state.sharedWaypoints.length >= 2 ? state.sharedWaypoints.map(coordinate => [...coordinate]) : [];
-      showToast(state.routeDraft.length ? "Общий маршрут открыт для редактирования" : "Поставьте первый узел, затем ведите линию по улицам");
+      state.routeDraft = activeRouteLine().map(coordinate => [...coordinate]);
+      showToast(state.routeDraft.length ? "Линия выбранного маршрута открыта для редактирования" : "Поставьте первый узел, затем ведите линию по улицам");
     }
     state.routeEditMode = enabled;
     if (!enabled) state.routeDraft = [];
@@ -1287,7 +1408,7 @@
   }
 
   function addRouteNode(latlng) {
-    if (!state.routeEditMode) return;
+    if (!state.routeEditMode || state.routeSaving) return;
     const coordinate = [Number(latlng.lat), Number(latlng.lng)];
     const previous = state.routeDraft.at(-1);
     if (previous && distanceMeters(previous, coordinate) < 4) {
@@ -1307,28 +1428,43 @@
   }
 
   async function saveSharedRoute() {
-    if (!requireParticipant() || state.routeDraft.length < 2) return;
+    if (!requireParticipant() || state.routeDraft.length < 2 || state.routeSaving) return;
+    const routeId = state.activeRouteId;
+    const coordinates = state.routeDraft.map(coordinate => [...coordinate]);
     const button = document.querySelector("#routeSaveButton");
+    state.routeSaving = true;
+    els.routeSelect.disabled = true;
+    updateRouteEditor();
     button.disabled = true;
     button.textContent = "Сохраняем…";
     try {
-      const waypoints = state.routeDraft.map((coordinate, index) => ({
-        lat: coordinate[0],
-        lng: coordinate[1],
-        pointId: nearestPointId(coordinate),
-        kind: index === 0 || index === state.routeDraft.length - 1 ? "stop" : "via"
-      }));
-      await community.saveRouteWaypoints(waypoints);
-      state.sharedWaypoints = state.routeDraft.map(coordinate => [...coordinate]);
-      state.routeCoordinates = state.sharedWaypoints.map(coordinate => [...coordinate]);
+      // The existing RPC replaces only 'main'; never call it for another route.
+      if (routeId === "main") {
+        const waypoints = coordinates.map((coordinate, index) => ({
+          lat: coordinate[0], lng: coordinate[1], pointId: nearestPointId(coordinate),
+          kind: index === 0 || index === coordinates.length - 1 ? "stop" : "via"
+        }));
+        await community.saveRouteWaypoints(waypoints);
+        state.sharedWaypoints = coordinates;
+        state.allSharedWaypoints = [
+          ...state.allSharedWaypoints.filter(item => item.route_id !== "main"),
+          ...coordinates.map((coordinate, index) => ({ route_id: "main", position: index + 1, latitude: coordinate[0], longitude: coordinate[1] }))
+        ];
+      } else {
+        localStorage.setItem("kem-route-line-v1:" + routeId, JSON.stringify(coordinates));
+      }
+      state.routeCoordinates = coordinates;
       setRouteEditMode(false);
       refreshWorkspaceViews();
-      showToast("Общий маршрут сохранён для всех участников");
+      showToast(routeId === "main" ? "Основной маршрут сохранён для всех участников" : "Линия маршрута сохранена на этом устройстве");
     } catch (error) {
       showToast(error.message || "Не удалось сохранить маршрут");
     } finally {
-      button.textContent = "Сохранить для всех";
-      button.disabled = false;
+      state.routeSaving = false;
+      els.routeSelect.disabled = false;
+      updateRouteEditor();
+      button.textContent = routeId === "main" ? "Сохранить для всех" : "Сохранить на устройстве";
+      button.disabled = state.routeEditMode && state.routeDraft.length < 2;
     }
   }
 
@@ -1345,10 +1481,10 @@
   }
 
   function renderRouteIssues() {
-    els.routeIssueCount.textContent = `замечаний: ${state.routeIssues.length}`;
+    els.routeIssueCount.textContent = `замечаний: ${selectedRouteIssues().length}`;
     if (state.routeIssueLayer && window.L) {
       state.routeIssueLayer.clearLayers();
-      state.routeIssues.forEach(issue => {
+      selectedRouteIssues().forEach(issue => {
         if (!Array.isArray(issue.coordinates) || issue.coordinates.length !== 2) return;
         const typeLabel = ROUTE_ISSUE_TYPES[issue.type] || ROUTE_ISSUE_TYPES.other;
         const marker = L.marker(issue.coordinates, {
@@ -1375,7 +1511,7 @@
   function renderCoordinateDrafts() {
     if (state.coordinateDraftLayer && window.L) {
       state.coordinateDraftLayer.clearLayers();
-      state.edits.filter(edit => ["coordinate", "new-point"].includes(edit.field) && Array.isArray(edit.coordinates)).forEach(edit => {
+      state.edits.filter(edit => ["coordinate", "new-point"].includes(edit.field) && Array.isArray(edit.coordinates) && pointIsOnSelectedRoute(edit.pointId)).forEach(edit => {
         const isNewPoint = edit.field === "new-point";
         const marker = L.marker(edit.coordinates, {
           icon: L.divIcon({
@@ -1515,7 +1651,7 @@
       state.map.setView(event.latlng, 16);
       state.userMarker?.openPopup();
     }
-    const nearest = guidedPoints
+    const nearest = selectedRoutePoints()
       .filter(point => Array.isArray(point.coordinates))
       .map(point => ({ point, distance: distanceMeters(state.userLocation, point.coordinates) }))
       .sort((a, b) => a.distance - b.distance)[0];
@@ -1537,7 +1673,8 @@
   }
 
   function renderPoints() {
-    const visible = state.filter === "all" ? guidedPoints : guidedPoints.filter(point => point.chapter === state.filter);
+    const points = selectedRoutePoints();
+    const visible = state.filter === "all" ? points : points.filter(point => point.chapter === state.filter);
     els.pointsList.innerHTML = visible.map(point => {
       const chapter = route.chapters.find(item => item.id === point.chapter);
       const done = state.completed.has(point.id) ? " · пройдено" : "";
@@ -1779,7 +1916,8 @@
     const pending = state.sharedPointRecords.find(item => item.id === pointId);
     const point = guided || (pending ? sharedPointToDisplay(pending) : null);
     if (!point) return;
-    if (guided) state.currentPointIndex = guidedPoints.indexOf(guided);
+    const selectedIndex = selectedRoutePoints().findIndex(item => item.id === pointId);
+    if (selectedIndex >= 0) state.currentPointIndex = selectedIndex;
     highlightPoint(pointId);
     if (Array.isArray(point.coordinates)) {
       if (state.mapProvider === "yandex" && state.yandexReady) {
@@ -1815,7 +1953,7 @@
       <div class="dialog-actions">
         <button class="button button--ghost" type="button" data-add-photo-point="${point.id}">Добавить фото</button>
         <button class="button button--ghost" type="button" data-edit-point="${point.id}">${userIsAuthenticated() ? "Редактировать точку" : "Предложить правку"}</button>
-        ${guided ? `<button class="button button--primary" type="button" data-complete-point="${point.id}">${state.completed.has(point.id) ? "Отметить непройденной" : "Точка пройдена"}</button>` : ""}
+        ${selectedIndex >= 0 ? `<button class="button button--primary" type="button" data-complete-point="${point.id}">${state.completed.has(point.id) ? "Отметить непройденной" : "Точка пройдена"}</button>` : ""}
       </div>`;
     bindEvidenceImageFallbacks(els.pointDialogContent);
     if (!els.pointDialog.open) els.pointDialog.showModal();
@@ -1999,7 +2137,9 @@
   }
 
   function enterGuide(pointIndex = 0) {
-    state.currentPointIndex = Math.min(Math.max(pointIndex, 0), guidedPoints.length - 1);
+    const points = selectedRoutePoints();
+    if (!points.length) { showToast("В выбранном маршруте пока нет подготовленных точек"); return; }
+    state.currentPointIndex = Math.min(Math.max(pointIndex, 0), points.length - 1);
     document.querySelector(".map-panel").hidden = true;
     els.pointsPanel.hidden = true;
     els.guidePanel.hidden = false;
@@ -2020,8 +2160,17 @@
   }
 
   function renderGuide() {
-    const point = guidedPoints[state.currentPointIndex];
-    els.guideStep.textContent = `Точка ${state.currentPointIndex + 1} из ${guidedPoints.length}`;
+    const points = selectedRoutePoints();
+    const point = points[state.currentPointIndex];
+    if (!point) {
+      els.guideStep.textContent = "Нет точек";
+      els.guideContent.innerHTML = '<p class="lead">В выбранном маршруте пока нет подготовленных точек.</p>';
+      document.querySelector("#previousPointButton").disabled = true;
+      document.querySelector("#nextPointButton").disabled = true;
+      return;
+    }
+    document.querySelector("#nextPointButton").disabled = false;
+    els.guideStep.textContent = `Точка ${state.currentPointIndex + 1} из ${points.length} · ${selectedRoute().title}`;
     els.guideContent.innerHTML = `<div class="guide-layout">
       <div class="guide-visual"><img src="${escapeHtml(point.image)}" alt="${escapeHtml(point.imageAlt)}"></div>
       <div class="guide-copy">
@@ -2044,7 +2193,7 @@
     </div>`;
     bindEvidenceImageFallbacks(els.guideContent);
     document.querySelector("#previousPointButton").disabled = state.currentPointIndex === 0;
-    document.querySelector("#nextPointButton").textContent = state.currentPointIndex === guidedPoints.length - 1 ? "Завершить маршрут" : "Следующая точка";
+    document.querySelector("#nextPointButton").textContent = state.currentPointIndex === points.length - 1 ? "Завершить маршрут" : "Следующая точка";
   }
 
   function completePoint(pointId) {
@@ -2063,6 +2212,7 @@
     const payload = {
       project: route.title,
       exportedAt: new Date().toISOString(),
+      selectedRoute: { id: state.activeRouteId, title: selectedRoute().title },
       routeGeometryVersion: routeGeometry?.version || null,
       proposals: state.edits,
       routeIssues: state.routeIssues,
@@ -2203,6 +2353,7 @@
     if (mapProviderButton) setMapProvider(mapProviderButton.dataset.mapProvider);
   });
 
+  els.routeSelect.addEventListener("change", () => selectRoute(els.routeSelect.value));
   document.querySelector("#startTourButton").addEventListener("click", () => enterGuide(0));
   document.querySelector("#showListButton").addEventListener("click", () => {
     document.querySelector(".workspace").scrollIntoView({ behavior: "smooth" });
@@ -2213,17 +2364,19 @@
   document.querySelector("#exitGuideButton").addEventListener("click", exitGuide);
   document.querySelector("#previousPointButton").addEventListener("click", () => { state.currentPointIndex -= 1; renderGuide(); });
   document.querySelector("#nextPointButton").addEventListener("click", () => {
-    const current = guidedPoints[state.currentPointIndex];
+    const points = selectedRoutePoints();
+    const current = points[state.currentPointIndex];
+    if (!current) return;
     state.completed.add(current.id);
     saveProgress();
     renderPoints();
-    if (state.currentPointIndex < guidedPoints.length - 1) {
+    if (state.currentPointIndex < points.length - 1) {
       state.currentPointIndex += 1;
       renderGuide();
       window.scrollTo({ top: document.querySelector(".workspace").offsetTop, behavior: "smooth" });
     } else {
       exitGuide();
-      showToast("Тестовый маршрут завершён — спасибо!");
+      showToast(`Маршрут «${selectedRoute().title}» завершён — спасибо!`);
     }
   });
   document.querySelectorAll(".segmented__button").forEach(button => button.addEventListener("click", () => button.dataset.view === "guide" ? enterGuide(state.currentPointIndex) : exitGuide()));
@@ -2717,6 +2870,7 @@
     const formData = new FormData(els.routeIssueForm);
     state.routeIssues.push({
       id: crypto.randomUUID ? crypto.randomUUID() : `route-issue-${Date.now()}`,
+      routeId: state.activeRouteId,
       type: formData.get("type"),
       detail: formData.get("detail"),
       coordinates: [Number(formData.get("lat")), Number(formData.get("lng"))],
@@ -2738,6 +2892,8 @@
   initializeCommunity();
   updatePasswordResetCooldown();
 
+  state.routeCoordinates = selectedRouteGeometry();
+  renderRouteChooser();
   renderFilters();
   renderPoints();
   renderPlanFilters();
@@ -2751,7 +2907,7 @@
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("./sw.js?v=20260724-13", { updateViaCache: "none" })
+        .register("./sw.js?v=20261115-routes-1", { updateViaCache: "none" })
         .then(registration => registration.update())
         .catch(() => {});
     });
